@@ -74,7 +74,7 @@ export default class App {
   }
 
   process(directory) {
-    let path  = Path.join(directory, "**", "*.{jsx,js}")
+    let path  = Path.join(directory, "src", "**", "*.{jsx,js}")
 
     let files = glob.sync(path)
     let docs  = jsdoc.explainSync({ files: files })
