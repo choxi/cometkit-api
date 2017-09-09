@@ -2,16 +2,17 @@ import express    from "express"
 import BodyParser from "body-parser"
 import morgan     from "morgan"
 import download   from "download-github-repo"
-
-import jsdoc from "jsdoc-api"
-import glob  from "glob"
-import Path  from "path"
-import fs    from "fs"
+import cors       from "cors"
+import jsdoc      from "jsdoc-api"
+import glob       from "glob"
+import Path       from "path"
+import fs         from "fs"
 
 export default class App {
   constructor() {
     this.router = express()
     this.router.use(BodyParser.json())
+    this.router.use(cors())
 
     process.on('unhandledRejection', (reason, p) => {
       console.log('Unhandled Rejection at:', p, 'reason:', reason)
