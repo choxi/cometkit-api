@@ -25,7 +25,7 @@ export default class App {
       let owner = request.body.owner
       let repo  = request.body.repo
 
-      let tmpPath = Path.join(".", "tmp", repo)
+      let tmpPath = Path.join("/", "tmp", repo)
       download(`${owner}/${repo}`, tmpPath, () => {
         let docs = this.process(tmpPath)
         response.json(docs)
