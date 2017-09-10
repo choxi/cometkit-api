@@ -12,6 +12,10 @@ const client = s3.createClient({
   }
 })
 
+function capitalize(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 const pack = (path, repo) => {
   let filename  = Path.basename(path).split(".")[0]
   let directory = Path.dirname(path)
@@ -20,6 +24,8 @@ const pack = (path, repo) => {
   let config = {
     entry: path,
     output: {
+      libraryTarget: "var",
+      library: capitalize(filename),
       path: directory,
       filename: out
     }
