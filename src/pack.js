@@ -36,10 +36,7 @@ const pack = (path, repo) => {
       loaders: [
         {
           test: /\.(js|jsx)$/,
-          loader: require.resolve('babel-loader'),
-          query: {
-            presets: ['react']
-          }
+          loader: require.resolve('babel-loader')
         }
       ]
     }
