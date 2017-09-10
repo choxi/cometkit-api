@@ -26,6 +26,7 @@ const pack = (path, repo) => {
     output: {
       libraryTarget: "var",
       library: capitalize(filename),
+      libraryExport: "default",
       path: directory,
       filename: out
     },
