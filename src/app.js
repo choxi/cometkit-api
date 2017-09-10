@@ -9,6 +9,7 @@ import Path       from "path"
 import fs         from "fs"
 import expressWs  from "express-ws"
 import helmet     from "helmet"
+import pack       from "./pack.js"
 
 export default class App {
   constructor() {
@@ -61,8 +62,19 @@ export default class App {
             tmpPath = Path.join(".", "tmp", repo)
 
           download(`${owner}/${repo}`, tmpPath, () => {
-            let response = { docs: this.process(tmpPath) }
-            ws.send(JSON.stringify(response))
+            let docs = this.process(tmpPath)
+
+            let uploads = docs.map(doc => {
+              if(doc.meta) {
+                let path = Path.join(doc.meta.path, doc.meta.filename)
+                return pack(path, repo)
+                .then(response => doc.meta.webpackUri = response.uri)
+              } else {
+                return Promise.resolve
+              }
+            })
+            Promise.all(uploads)
+            .then(() => ws.send(JSON.stringify({ docs: docs })))
           })
         }
       })
