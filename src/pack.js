@@ -18,7 +18,7 @@ function capitalize(string) {
 
 const pack = (path, repo) => {
   let filename  = Path.basename(path).split(".")[0]
-  let directory = Path.dirname(path)
+  let directory = Path.resolve(".", "tmp", "dist")
   let out       = `${filename}.js`
 
   let config = {
@@ -28,6 +28,17 @@ const pack = (path, repo) => {
       library: capitalize(filename),
       path: directory,
       filename: out
+    },
+    externals: {
+      react: "React"
+    },
+    module: {
+      loaders: [
+        {
+          test: /\.(js|jsx)$/,
+          loader: require.resolve('babel-loader')
+        }
+      ]
     }
   }
 
