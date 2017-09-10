@@ -1,4 +1,4 @@
 {
   "presets": ["env", "react-app"],
-  "plugins": ["transform-es3-property-literals"]
+  "plugins": ["transform-es3-property-literals", "add-module-exports"]
 }
