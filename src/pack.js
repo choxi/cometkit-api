@@ -34,13 +34,13 @@ const pack = (path, repo) => {
   return new Promise((resolve, reject) => {
     webpack(config, (err, stats) => {
       let key     = [repo, out].join("/")
-      let bucket  = "www.cometkit.co"
+      let bucket  = process.env.S3_BUCKET
 
       let params = {
         localFile: Path.join(directory, out),
         s3Params: {
           ACL: "public-read",
-          Bucket: "www.cometkit.co",
+          Bucket: bucket,
           Key: key
         }
       }
