@@ -19,7 +19,7 @@ function capitalize(string) {
 const pack = (path, repo) => {
   let filename  = Path.basename(path).split(".")[0]
   let directory = Path.dirname(path)
-  let out       = `${filename}.webpack.js`
+  let out       = `${filename}.js`
 
   let config = {
     entry: path,
