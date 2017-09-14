@@ -28,7 +28,9 @@
     "helmet": "3.8.1",
     "jsdoc-api": "4.0.0",
     "morgan": "1.8.2",
+    "node-sass": "4.5.3",
     "s3": "4.4.0",
+    "sass-loader": "6.0.6",
     "utf-8-validate": "3.0.3",
     "webpack": "3.5.6"
   }

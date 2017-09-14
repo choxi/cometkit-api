@@ -41,6 +41,10 @@ const pack = (path, repo) => {
     module: {
       loaders: [
         {
+          test: /.*\.scss$/,
+          loader: 'style-loader!css-loader!autoprefixer!sass-loader',
+        },
+        {
           test: /\.(js|jsx)$/,
           loader: require.resolve('babel-loader')
         }
