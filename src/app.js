@@ -61,6 +61,8 @@ export default class App {
           else
             tmpPath = Path.join(".", "tmp", repo)
 
+          console.log(`TMP_PATH: ${tmpPath}`)
+
           download(`${owner}/${repo}`, tmpPath, () => {
             let docs = this.process(tmpPath)
 
