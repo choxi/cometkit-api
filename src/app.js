@@ -64,10 +64,15 @@ export default class App {
           download(`${owner}/${repo}`, tmpPath, () => {
             let docs = this.process(tmpPath)
 
+            let webpackPath, webpackConfig
+            webpackPath = Path.join(tmpPath, "webpack.config.js")
+            if(fs.existsSync(webpackPath))
+              webpackConfig = require(webpackPath)
+
             let uploads = docs.map(doc => {
               if(doc.meta) {
                 let path = Path.join(doc.meta.path, doc.meta.filename)
-                return pack(path, repo)
+                return pack(path, repo, webpackConfig)
                 .then(response => doc.meta.webpackUri = response.uri)
               } else {
                 return Promise.resolve

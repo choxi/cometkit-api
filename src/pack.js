@@ -16,7 +16,7 @@ function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-const pack = (path, repo) => {
+const pack = (path, repo, webpackConfig) => {
   let name = Path.basename(path).split(".")[0]
 
   if(name === "index")
@@ -41,16 +41,15 @@ const pack = (path, repo) => {
     module: {
       loaders: [
         {
-          test: /.*\.scss$/,
-          loader: 'style-loader!css-loader!autoprefixer!sass-loader',
-        },
-        {
           test: /\.(js|jsx)$/,
           loader: require.resolve('babel-loader')
         }
       ]
     }
   }
+
+  if(webpackConfig)
+    config.module = webpackConfig.module
 
   return new Promise((resolve, reject) => {
     webpack(config, (err, stats) => {
