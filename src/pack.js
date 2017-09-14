@@ -17,18 +17,22 @@ function capitalize(string) {
 }
 
 const pack = (path, repo) => {
-  let filename  = Path.basename(path).split(".")[0]
+  let name = Path.basename(path).split(".")[0]
+
+  if(name === "index")
+    name = Path.dirname(path).split(Path.sep).pop()
+
   let directory = Path.resolve(".", "tmp", "dist")
-  let out       = `${filename}.js`
+  let filename  = `${name}.js`
 
   let config = {
     entry: path,
     output: {
       libraryTarget: "var",
-      library: capitalize(filename),
+      library: capitalize(name),
       libraryExport: "default",
       path: directory,
-      filename: out
+      filename: filename
     },
     externals: {
       react: "React"
@@ -45,11 +49,11 @@ const pack = (path, repo) => {
 
   return new Promise((resolve, reject) => {
     webpack(config, (err, stats) => {
-      let key     = [repo, out].join("/")
+      let key     = [repo, filename].join("/")
       let bucket  = process.env.S3_BUCKET
 
       let params = {
-        localFile: Path.join(directory, out),
+        localFile: Path.join(directory, filename),
         s3Params: {
           ACL: "public-read",
           Bucket: bucket,
