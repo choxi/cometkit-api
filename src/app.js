@@ -9,7 +9,7 @@ import Path       from "path"
 import fs         from "fs"
 import expressWs  from "express-ws"
 import helmet     from "helmet"
-import pack       from "./pack.js"
+import Repo       from "./repo.js"
 import { exec }   from "child-process-promise"
 
 export default class App {
@@ -56,49 +56,7 @@ export default class App {
           let owner   = action.owner
           let repo    = action.repo
           let tmpPath = Path.join("/", "tmp", repo)
-
-          download(`${owner}/${repo}`, tmpPath, () => {
-            // Parse docs
-            let docs = this.process(tmpPath)
-
-            // Build sources
-            exec("npm install", { cwd: Path.resolve(tmpPath) }) 
-            .then((result) => {
-              console.log(`STDOUT: ${ result.stdout }`)
-              console.log(`STDERR: ${ result.stderr }`)
-
-              let uploads = docs.map(doc => {
-                if(doc.meta) {
-                  let filePath = Path.join(doc.meta.path, doc.meta.filename)
-
-                  return pack(tmpPath, filePath, repo)
-                  .then(response => doc.meta.webpackUri = response.uri)
-                } else {
-                  return Promise.resolve
-                }
-              })
-
-              return Promise.all(uploads)
-            })
-            .then(() => ws.send(JSON.stringify({ docs: docs })))
-            .catch(error => console.log(error))
-            // let webpackPath, webpackConfig
-            // webpackPath = Path.join(tmpPath, "webpack.config.js")
-            // if(fs.existsSync(webpackPath))
-            //   webpackConfig = require(webpackPath)
-
-            // let uploads = docs.map(doc => {
-            //   if(doc.meta) {
-            //     let path = Path.join(doc.meta.path, doc.meta.filename)
-            //     return pack(path, repo, webpackConfig)
-            //     .then(response => doc.meta.webpackUri = response.uri)
-            //   } else {
-            //     return Promise.resolve
-            //   }
-            // })
-            // Promise.all(uploads)
-            // .then(() => ws.send(JSON.stringify({ docs: docs })))
-          })
+          this.createDocs(ws, owner, repo, tmpPath)
         }
       })
     })
@@ -106,6 +64,47 @@ export default class App {
     this.router.get("/", (request, response) => {
       response.send("Comet API")
     })
+  }
+
+  async createDocs(ws, owner, repo, tmpPath) {
+    let exists  = await Repo.exists(repo)
+    let docs    = await Repo.getFile(repo, "docs.comet.json")
+
+    if(docs)
+      docs = JSON.parse(docs)
+
+    if(exists && docs) {
+      console.log("EXISTS")
+      ws.send(JSON.stringify({ docs: docs }))
+    } else {
+      console.log("DOES NOT EXIST")
+      download(`${owner}/${repo}`, tmpPath, () => {
+        // Parse docs
+        let docs = this.process(tmpPath)
+        Repo.add(repo, "docs.comet.json", JSON.stringify(docs))
+        // Build sources
+        .then(() => exec("npm install", { cwd: Path.resolve(tmpPath) }))
+        .then((result) => {
+          console.log(`STDOUT: ${ result.stdout }`)
+          console.log(`STDERR: ${ result.stderr }`)
+
+          let uploads = docs.map(doc => {
+            if(doc.meta) {
+              let filePath = Path.join(doc.meta.path, doc.meta.filename)
+
+              return Repo.pack(tmpPath, filePath, repo)
+              .then(response => doc.meta.webpackUri = response.uri)
+            } else {
+              return Promise.resolve
+            }
+          })
+
+          return Promise.all(uploads)
+        })
+        .then(() => ws.send(JSON.stringify({ docs: docs })))
+        .catch(error => console.log(error))
+      })
+    }
   }
 
   process(directory) {

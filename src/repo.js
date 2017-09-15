@@ -1,25 +1,73 @@
 import Path from "path"
 import webpack from "webpack"
-import s3 from "s3"
+import s3Client from "s3"
 import dotenv from "dotenv"
 import { exec } from "child-process-promise"
 import fs from "fs"
+import AWS from "aws-sdk"
 
 dotenv.config()
 
-const client = s3.createClient({
-  s3Options: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    region: process.env.AWS_REGION
-  }
-})
-
-function capitalize(string) {
-  return string.charAt(0).toUpperCase() + string.slice(1);
+const s3Options = {
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION
 }
 
-const pack = (repoPath, path, repo) => {
+const client  = s3Client.createClient({ s3Options: s3Options })
+const s3      = new AWS.S3(s3Options)
+
+export default class Repo {
+  static exists(repo) {
+    return new Promise((resolve, reject) => {
+      let s3Params = { Bucket: process.env.S3_BUCKET, MaxKeys: 100, Prefix: repo }
+      s3.listObjects(s3Params, (err, data) => {
+        if(err) reject(err)
+        else {
+          resolve(data.Contents.length !== 0)
+        }
+      })
+    })
+  }
+}
+
+Repo.getFile = (repo, key) => {
+  let params = {
+    Bucket: process.env.S3_BUCKET,
+    Key: [repo, key].join("/")
+  }
+
+  return new Promise((resolve, reject) => {
+    s3.getObject(params, (err, data) => {
+      if(err && err.code === "NoSuchKey") 
+        resolve()
+      else if(err) 
+        reject(err)
+      else {
+        resolve(data.Body.toString())
+      }
+    })
+  })
+}
+
+Repo.add = (repo, key, value) => {
+  let params = {
+    Body: value,
+    ACL: "public-read",
+    Bucket: process.env.S3_BUCKET,
+    Key: [repo, key].join("/")
+  }
+
+  return new Promise((resolve, reject) => {
+    s3.putObject(params, (err, data) => {
+      if(err) reject(err)
+      else
+        resolve(data)
+    })
+  })
+}
+
+Repo.pack = (repoPath, path, repo) => {
   let name = Path.basename(path).split(".")[0]
 
   if(name === "index")
@@ -90,4 +138,6 @@ const pack = (repoPath, path, repo) => {
   })
 }
 
-export default pack
+function capitalize(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}

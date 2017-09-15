@@ -9,12 +9,18 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "babel": {
-    "presets": ["env", "react-app"],
-    "plugins": ["transform-es3-property-literals"]
+    "presets": [
+      "env",
+      "react-app"
+    ],
+    "plugins": [
+      "transform-es3-property-literals"
+    ]
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aws-sdk": "2.116.0",
     "babel-loader": "7.1.2",
     "babel-plugin-transform-es3-property-literals": "6.22.0",
     "babel-preset-env": "1.6.0",
