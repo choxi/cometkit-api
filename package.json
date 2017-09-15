@@ -5,7 +5,12 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "dev": "NODE_ENV=development node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "babel": {
+    "presets": ["env", "react-app"],
+    "plugins": ["transform-es3-property-literals"]
   },
   "author": "",
   "license": "ISC",
@@ -19,6 +24,7 @@
     "babel-register": "6.26.0",
     "body-parser": "1.17.2",
     "bufferutil": "3.0.2",
+    "child-process-promise": "2.2.1",
     "clean-webpack-plugin": "0.1.16",
     "cors": "2.8.4",
     "dotenv": "4.0.0",
@@ -29,7 +35,6 @@
     "helmet": "3.8.1",
     "jsdoc-api": "4.0.0",
     "morgan": "1.8.2",
-    "movieboard": "git+https://github.com/choxi/movieboard.git",
     "node-sass": "4.5.3",
     "s3": "4.4.0",
     "sass-loader": "6.0.6",

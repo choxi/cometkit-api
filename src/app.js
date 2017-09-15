@@ -10,6 +10,7 @@ import fs         from "fs"
 import expressWs  from "express-ws"
 import helmet     from "helmet"
 import pack       from "./pack.js"
+import { exec }   from "child-process-promise"
 
 export default class App {
   constructor() {
@@ -52,36 +53,51 @@ export default class App {
         console.log(`Action:\n${formatted}`)
 
         if(action.type === "CREATE_DOCS") {
-          let owner = action.owner
-          let repo  = action.repo
-          let tmpPath
-
-          if(process.env.NODE_ENV == "production")
-            tmpPath = Path.join("/", "tmp", repo)
-          else
-            tmpPath = Path.join(".", "tmp", repo)
-
-          console.log(`TMP_PATH: ${tmpPath}`)
+          let owner   = action.owner
+          let repo    = action.repo
+          let tmpPath = Path.join("/", "tmp", repo)
 
           download(`${owner}/${repo}`, tmpPath, () => {
+            // Parse docs
             let docs = this.process(tmpPath)
 
-            let webpackPath, webpackConfig
-            webpackPath = Path.join(tmpPath, "webpack.config.js")
-            if(fs.existsSync(webpackPath))
-              webpackConfig = require(webpackPath)
+            // Build sources
+            exec("npm install", { cwd: Path.resolve(tmpPath) }) 
+            .then((result) => {
+              console.log(`STDOUT: ${ result.stdout }`)
+              console.log(`STDERR: ${ result.stderr }`)
 
-            let uploads = docs.map(doc => {
-              if(doc.meta) {
-                let path = Path.join(doc.meta.path, doc.meta.filename)
-                return pack(path, repo, webpackConfig)
-                .then(response => doc.meta.webpackUri = response.uri)
-              } else {
-                return Promise.resolve
-              }
+              let uploads = docs.map(doc => {
+                if(doc.meta) {
+                  let filePath = Path.join(doc.meta.path, doc.meta.filename)
+
+                  return pack(tmpPath, filePath, repo)
+                  .then(response => doc.meta.webpackUri = response.uri)
+                } else {
+                  return Promise.resolve
+                }
+              })
+
+              return Promise.all(uploads)
             })
-            Promise.all(uploads)
             .then(() => ws.send(JSON.stringify({ docs: docs })))
+            .catch(error => console.log(error))
+            // let webpackPath, webpackConfig
+            // webpackPath = Path.join(tmpPath, "webpack.config.js")
+            // if(fs.existsSync(webpackPath))
+            //   webpackConfig = require(webpackPath)
+
+            // let uploads = docs.map(doc => {
+            //   if(doc.meta) {
+            //     let path = Path.join(doc.meta.path, doc.meta.filename)
+            //     return pack(path, repo, webpackConfig)
+            //     .then(response => doc.meta.webpackUri = response.uri)
+            //   } else {
+            //     return Promise.resolve
+            //   }
+            // })
+            // Promise.all(uploads)
+            // .then(() => ws.send(JSON.stringify({ docs: docs })))
           })
         }
       })
