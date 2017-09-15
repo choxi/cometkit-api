@@ -29,6 +29,7 @@
     "helmet": "3.8.1",
     "jsdoc-api": "4.0.0",
     "morgan": "1.8.2",
+    "movieboard": "git+https://github.com/choxi/movieboard.git",
     "node-sass": "4.5.3",
     "s3": "4.4.0",
     "sass-loader": "6.0.6",
