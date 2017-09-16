@@ -38,9 +38,9 @@ export default class Repo {
 
     return new Promise((resolve, reject) => {
       s3.getObject(params, (err, data) => {
-        if(err && err.code === "NoSuchKey") 
+        if(err && err.code === "NoSuchKey")
           resolve()
-        else if(err) 
+        else if(err)
           reject(err)
         else {
           resolve(data.Body.toString())
@@ -75,14 +75,20 @@ export default class Repo {
     let directory = Path.resolve(repoPath, "comet-dist")
     let filename  = `${name}.js`
 
-    let config = configTemplate({ entry: path, library: capitalize(name), path: directory, filename: filename })
+    let config
+    if(fs.existsSync(Path.join(repoPath, "webpack.config.js")))
+      config = configTemplate({ entry: path, library: capitalize(name), path: directory, filename: filename })
+    else
+      config = configTemplate({ entry: path, library: capitalize(name), path: directory, filename: filename }, { loadUserConfig: false })
 
     let webpackConfigName = `${name}.webpack.js`
     let webpackConfigPath = Path.join(repoPath, webpackConfigName)
+
     fs.writeFileSync(webpackConfigPath, config)
 
+    let appDir = Path.dirname(require.main.filename)
     return new Promise((resolve, reject) => {
-      exec(`NODE_ENV=production webpack --config ${webpackConfigName}`, { cwd: repoPath })
+      exec(`NODE_ENV=production NODE_PATH='${appDir}' webpack --config ${webpackConfigName}`, { cwd: repoPath })
       .then((result) => {
         console.log(`WEBPACK STDOUT: ${ result.stdout }`)
         console.log(`WEBPACK STDERR: ${ result.stderr }`)
@@ -124,9 +130,32 @@ function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-function configTemplate({ entry, library, path, filename }) {
+function configTemplate({ entry, library, path, filename }, options) {
+  let userConfig, module
+  if(options && !options.loadUserConfig) {
+    userConfig  = ""
+    module      = `{
+      loaders: [
+        {
+          test: /\.(scss|sass)$/,
+          loader: 'style-loader!css-loader!autoprefixer!sass-loader',
+        },
+        {
+          test: /\.(js|jsx)$/,
+          loader: require.resolve('babel-loader'),
+          query: {
+            presets: ['react']
+          }
+        }
+      ]
+    }`
+  } else {
+    userConfig  = `var defaultConfig = require("./webpack.config.js")`
+    module      = `defaultConfig.module`
+  }
+
   return `
-    var defaultConfig = require("./webpack.config.js")
+    ${ userConfig }
 
     module.exports = {
       entry: "${ entry }",
@@ -141,7 +170,7 @@ function configTemplate({ entry, library, path, filename }) {
         react: "React",
         "react-dom": "ReactDOM"
       },
-      module: defaultConfig.module
+      module: ${ module }
     }
   `
 }
