@@ -12,6 +12,7 @@ import helmet     from "helmet"
 import Repo       from "./repo.js"
 import { exec }   from "child-process-promise"
 import fetch      from "node-fetch"
+import semi       from "semi"
 
 export default class App {
   constructor() {
@@ -31,6 +32,8 @@ export default class App {
     process.on('unhandledRejection', (reason, p) => {
       console.log('Unhandled Rejection at:', p, 'reason:', reason)
     })
+
+    semi.on("error", console.log)
 
     if(process.env.NODE_ENV !== "test")
       this.router.use(morgan(process.env.MORGAN_LOG_FORM || 'combined'))
@@ -80,34 +83,44 @@ export default class App {
     if(exists && docs)
       ws.send(JSON.stringify({ docs: docs }))
     else {
-      download(namespace, tmpPath, () => {
-        // Parse docs
-        docs = this.process(tmpPath)
-        Repo.add(namespace, "docs.comet.json", JSON.stringify(docs))
+      // Download repo
+      await this.download(namespace, tmpPath)
 
-        // Build sources
-        .then(() => exec("npm install", { cwd: Path.resolve(tmpPath) }))
-        .then((result) => {
-          console.log(`STDOUT: ${ result.stdout }`)
-          console.log(`STDERR: ${ result.stderr }`)
+      // Parse docs
+      docs = this.process(tmpPath)
 
-          let uploads = docs.map(doc => {
-            if(doc.meta) {
-              let filePath = Path.join(doc.meta.path, doc.meta.filename)
+      // Build sources
+      let result = await exec("npm install", { cwd: Path.resolve(tmpPath) })
+      console.log(`STDOUT: ${ result.stdout }`)
+      console.log(`STDERR: ${ result.stderr }`)
 
-              return Repo.pack(tmpPath, filePath, namespace)
-              .then(response => doc.meta.webpackUri = response.uri)
-            } else {
-              return Promise.resolve
-            }
-          })
+      let uploads = docs.map(doc => {
+        if(doc.meta) {
+          let filePath = Path.join(doc.meta.path, doc.meta.filename)
 
-          return Promise.all(uploads)
-        })
-        .then(() => ws.send(JSON.stringify({ docs: docs })))
-        .catch(error => console.log(error))
+          // Add semicolons
+          if(doc.examples)
+            doc.demos = doc.examples.map(example => semi.add(example))
+
+          return Repo.pack(tmpPath, filePath, namespace)
+          .then(response => doc.meta.webpackUri = response.uri)
+        } else {
+          return Promise.resolve
+        }
       })
+
+      // Upload to S3
+      await Promise.all(uploads)
+      await Repo.add(namespace, "docs.comet.json", JSON.stringify(docs))
+
+      ws.send(JSON.stringify({ docs: docs }))
     }
+  }
+
+  download(repo, directory) {
+    return new Promise((resolve, reject) => {
+      download(repo, directory, resolve)
+    })
   }
 
   process(directory) {
