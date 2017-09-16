@@ -12,7 +12,6 @@ import helmet     from "helmet"
 import Repo       from "./repo.js"
 import { exec }   from "child-process-promise"
 import fetch      from "node-fetch"
-import semi       from "semi"
 
 export default class App {
   constructor() {
@@ -32,8 +31,6 @@ export default class App {
     process.on('unhandledRejection', (reason, p) => {
       console.log('Unhandled Rejection at:', p, 'reason:', reason)
     })
-
-    semi.on("error", console.log)
 
     if(process.env.NODE_ENV !== "test")
       this.router.use(morgan(process.env.MORGAN_LOG_FORM || 'combined'))
@@ -97,10 +94,6 @@ export default class App {
       let uploads = docs.map(doc => {
         if(doc.meta) {
           let filePath = Path.join(doc.meta.path, doc.meta.filename)
-
-          // Add semicolons
-          if(doc.examples)
-            doc.demos = doc.examples.map(example => semi.add(example))
 
           return Repo.pack(tmpPath, filePath, namespace)
           .then(response => doc.meta.webpackUri = response.uri)
