@@ -53,10 +53,8 @@ export default class App {
         console.log(`Action:\n${formatted}`)
 
         if(action.type === "CREATE_DOCS") {
-          let owner   = action.owner
-          let repo    = action.repo
-          let tmpPath = Path.join("/", "tmp", repo)
-          this.createDocs(ws, owner, repo, tmpPath)
+          let tmpPath = Path.join("/", "tmp", action.repo)
+          this.createDocs(ws, action.owner, action.repo, tmpPath)
         }
       })
     })
@@ -67,21 +65,21 @@ export default class App {
   }
 
   async createDocs(ws, owner, repo, tmpPath) {
-    let exists  = await Repo.exists(repo)
-    let docs    = await Repo.getFile(repo, "docs.comet.json")
+    let namespace = [owner, repo].join("/")
+    let exists    = await Repo.exists(namespace)
+    let docs      = await Repo.getFile(namespace, "docs.comet.json")
 
     if(docs)
       docs = JSON.parse(docs)
 
-    if(exists && docs) {
-      console.log("EXISTS")
+    if(exists && docs)
       ws.send(JSON.stringify({ docs: docs }))
-    } else {
-      console.log("DOES NOT EXIST")
-      download(`${owner}/${repo}`, tmpPath, () => {
+    else {
+      download(namespace, tmpPath, () => {
         // Parse docs
-        let docs = this.process(tmpPath)
-        Repo.add(repo, "docs.comet.json", JSON.stringify(docs))
+        docs = this.process(tmpPath)
+        Repo.add(namespace, "docs.comet.json", JSON.stringify(docs))
+
         // Build sources
         .then(() => exec("npm install", { cwd: Path.resolve(tmpPath) }))
         .then((result) => {
@@ -92,7 +90,7 @@ export default class App {
             if(doc.meta) {
               let filePath = Path.join(doc.meta.path, doc.meta.filename)
 
-              return Repo.pack(tmpPath, filePath, repo)
+              return Repo.pack(tmpPath, filePath, namespace)
               .then(response => doc.meta.webpackUri = response.uri)
             } else {
               return Promise.resolve

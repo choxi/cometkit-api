@@ -29,115 +29,119 @@ export default class Repo {
       })
     })
   }
-}
 
-Repo.getFile = (repo, key) => {
-  let params = {
-    Bucket: process.env.S3_BUCKET,
-    Key: [repo, key].join("/")
-  }
+  static getFile(repo, key) {
+    let params = {
+      Bucket: process.env.S3_BUCKET,
+      Key: [repo, key].join("/")
+    }
 
-  return new Promise((resolve, reject) => {
-    s3.getObject(params, (err, data) => {
-      if(err && err.code === "NoSuchKey") 
-        resolve()
-      else if(err) 
-        reject(err)
-      else {
-        resolve(data.Body.toString())
-      }
-    })
-  })
-}
-
-Repo.add = (repo, key, value) => {
-  let params = {
-    Body: value,
-    ACL: "public-read",
-    Bucket: process.env.S3_BUCKET,
-    Key: [repo, key].join("/")
-  }
-
-  return new Promise((resolve, reject) => {
-    s3.putObject(params, (err, data) => {
-      if(err) reject(err)
-      else
-        resolve(data)
-    })
-  })
-}
-
-Repo.pack = (repoPath, path, repo) => {
-  let name = Path.basename(path).split(".")[0]
-
-  if(name === "index")
-    name = Path.dirname(path).split(Path.sep).pop()
-
-  let directory = Path.resolve(repoPath, "comet-dist")
-  let filename  = `${name}.js`
-
-  let config = `
-  var defaultConfig = require("./webpack.config.js")
-
-  module.exports = {
-    entry: "${path}",
-    output: {
-      libraryTarget: "var",
-      library: "${capitalize(name)}",
-      libraryExport: "default",
-      path: "${directory}",
-      filename: "${filename}"
-    },
-    externals: {
-      react: "React",
-      "react-dom": "ReactDOM"
-    },
-    module: defaultConfig.module
-  }
-  `
-
-  let webpackConfigName = `${name}.webpack.js`
-  let webpackConfigPath = Path.join(repoPath, webpackConfigName)
-  fs.writeFileSync(webpackConfigPath, config)
-
-  return new Promise((resolve, reject) => {
-    exec(`NODE_ENV=production webpack --config ${webpackConfigName}`, { cwd: repoPath })
-    .then((result) => {
-      console.log(`WEBPACK STDOUT: ${ result.stdout }`)
-      console.log(`WEBPACK STDERR: ${ result.stderr }`)
-
-      let key     = [repo, filename].join("/")
-      let bucket  = process.env.S3_BUCKET
-
-      let params = {
-        localFile: Path.join(directory, filename),
-        s3Params: {
-          ACL: "public-read",
-          Bucket: bucket,
-          Key: key
+    return new Promise((resolve, reject) => {
+      s3.getObject(params, (err, data) => {
+        if(err && err.code === "NoSuchKey") 
+          resolve()
+        else if(err) 
+          reject(err)
+        else {
+          resolve(data.Body.toString())
         }
-      }
-
-      let uploader = client.uploadFile(params)
-
-      uploader.on('error', function(err) {
-        console.error("unable to upload:", err.stack)
-      })
-
-      uploader.on('progress', function() {
-        console.log("progress", uploader.progressMd5Amount, uploader.progressAmount, uploader.progressTotal)
-      })
-
-      uploader.on('end', function() {
-        console.log("done uploading")
-
-        let uri = `https://s3-us-west-1.amazonaws.com/${bucket}/${key}`
-        resolve({ uri: uri })
       })
     })
-  })
+  }
+
+  static add(repo, key, value) {
+    let params = {
+      Body: value,
+      ACL: "public-read",
+      Bucket: process.env.S3_BUCKET,
+      Key: [repo, key].join("/")
+    }
+
+    return new Promise((resolve, reject) => {
+      s3.putObject(params, (err, data) => {
+        if(err) reject(err)
+        else
+          resolve(data)
+      })
+    })
+  }
+
+  static pack(repoPath, path, repo) {
+    let name = Path.basename(path).split(".")[0]
+
+    if(name === "index")
+      name = Path.dirname(path).split(Path.sep).pop()
+
+    let directory = Path.resolve(repoPath, "comet-dist")
+    let filename  = `${name}.js`
+
+    let config = configTemplate({ entry: path, library: capitalize(name), path: directory, filename: filename })
+
+    let webpackConfigName = `${name}.webpack.js`
+    let webpackConfigPath = Path.join(repoPath, webpackConfigName)
+    fs.writeFileSync(webpackConfigPath, config)
+
+    return new Promise((resolve, reject) => {
+      exec(`NODE_ENV=production webpack --config ${webpackConfigName}`, { cwd: repoPath })
+      .then((result) => {
+        console.log(`WEBPACK STDOUT: ${ result.stdout }`)
+        console.log(`WEBPACK STDERR: ${ result.stderr }`)
+
+        let key     = [repo, filename].join("/")
+        let bucket  = process.env.S3_BUCKET
+
+        let params = {
+          localFile: Path.join(directory, filename),
+          s3Params: {
+            ACL: "public-read",
+            Bucket: bucket,
+            Key: key
+          }
+        }
+
+        let uploader = client.uploadFile(params)
+
+        uploader.on('error', function(err) {
+          console.error("unable to upload:", err.stack)
+        })
+
+        uploader.on('progress', function() {
+          console.log("progress", uploader.progressMd5Amount, uploader.progressAmount, uploader.progressTotal)
+        })
+
+        uploader.on('end', function() {
+          console.log("done uploading")
+
+          let uri = `https://s3-us-west-1.amazonaws.com/${bucket}/${key}`
+          resolve({ uri: uri })
+        })
+      })
+    })
+  }
 }
 
 function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+function configTemplate({ entry, library, path, filename }) {
+  return `
+    var defaultConfig = require("./webpack.config.js")
+
+    module.exports = {
+      entry: "${ entry }",
+      output: {
+        libraryTarget: "var",
+        library: "${ library }",
+        libraryExport: "default",
+        path: "${ path }",
+        filename: "${ filename }"
+      },
+      externals: {
+        react: "React",
+        "react-dom": "ReactDOM"
+      },
+      module: defaultConfig.module
+    }
+  `
 }
