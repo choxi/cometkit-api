@@ -90,9 +90,9 @@ export default class Repo {
     let webpackConfigName = `${name}.webpack.js`
     let webpackConfigPath = Path.join(downloadPath, webpackConfigName)
     fs.writeFileSync(webpackConfigPath, config)
+    console.log(`Injected ${webpackConfigPath}`)
 
-    let appDir = Path.dirname(require.main.filename)
-
+    let appDir = process.cwd()
     return new Promise((resolve, reject) => {
       exec(`NODE_ENV=production NODE_PATH='${appDir}' webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
       .then((result) => {
