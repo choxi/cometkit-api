@@ -88,7 +88,7 @@ export default class Repo {
 
     let appDir = Path.dirname(require.main.filename)
     return new Promise((resolve, reject) => {
-      exec(`NODE_ENV=production NODE_PATH='${appDir}' webpack --config ${webpackConfigName}`, { cwd: repoPath })
+      exec(`NODE_ENV=production NODE_PATH='${appDir}' webpack -p --config ${webpackConfigName}`, { cwd: repoPath })
       .then((result) => {
         console.log(`WEBPACK STDOUT: ${ result.stdout }`)
         console.log(`WEBPACK STDERR: ${ result.stderr }`)
@@ -131,9 +131,10 @@ function capitalize(string) {
 }
 
 function configTemplate({ entry, library, path, filename }, options) {
-  let userConfig, module
+  let userConfig, module, resolve
   if(options && !options.loadUserConfig) {
     userConfig  = ""
+    resolve     = "null"
     module      = `{
       loaders: [
         {
@@ -150,8 +151,9 @@ function configTemplate({ entry, library, path, filename }, options) {
       ]
     }`
   } else {
-    userConfig  = `var defaultConfig = require("./webpack.config.js")`
+    userConfig  = `var defaultConfig = require("./webpack.dev.js")`
     module      = `defaultConfig.module`
+    resolve     = `defaultConfig.resolve`
   }
 
   return `
@@ -170,6 +172,7 @@ function configTemplate({ entry, library, path, filename }, options) {
         react: "React",
         "react-dom": "ReactDOM"
       },
+      resolve: ${ resolve },
       module: ${ module }
     }
   `
