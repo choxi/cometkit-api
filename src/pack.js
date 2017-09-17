@@ -2,6 +2,7 @@ import Repo         from "./repo"
 import downloadRepo from "download-github-repo"
 import path         from "path"
 import { exec }     from "child-process-promise"
+import fs           from "fs"
 
 process.on('unhandledRejection', (reason, p) => {
   console.log('Unhandled Rejection at:', p, 'reason:', reason)
@@ -19,11 +20,43 @@ async function doPack(repo, filePath) {
   console.log(result.stderr)
   console.log("Installed dependencies.")
 
-  let outputPath  = await Repo.pack(downloadPath, filePath)
+  let packConfig = { webpackConfigPath: "webpack.dev.js" }
+  let outputPath  = await Repo.pack(downloadPath, filePath, packConfig)
+  
+  // Create Stage
+  let stageName = capitalize(path.basename(outputPath).split(".")[0])
+  let stage     = stageTemplate(stageName, outputPath)
+  let stagePath = path.join(path.dirname(outputPath), `${stageName}.html`)
 
-  console.log(`Out: ${outputPath}.`)
+  fs.writeFileSync(stagePath, stage)
+
+  console.log(`Created test stage at: ${stagePath}`)
 
   return outputPath
+}
+
+function capitalize(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+function stageTemplate(stageName, srcPath) {
+  return `
+    <html>
+      <body>
+        <div id="Stage">
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.6.1/react.js" type="text/javascript"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.6.1/react-dom.js" type="text/javascript"></script>
+        <script src="${ srcPath }" type="text/javascript"></script>
+        <script>
+          var element = React.createElement(${ stageName }, {}, null)
+          var container = document.getElementById("Stage")
+          ReactDOM.render(element, container)
+        </script>
+      </body>
+    </html>
+  `
 }
 
 async function download(repo, downloadPath) {
@@ -33,7 +66,7 @@ async function download(repo, downloadPath) {
 }
 
 async function main() {
-  let output = await doPack("choxi/movieboard", "./src/common/components/MovieGrid/index.js")
+  let output = await doPack("choxi/soapee-ui", "./src/app/components/shareThis.js")
   console.log(output)
 }
 

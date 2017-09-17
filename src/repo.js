@@ -66,7 +66,7 @@ export default class Repo {
     })
   }
 
-  static pack(downloadPath, filePath) {
+  static pack(downloadPath, filePath, options) {
     let name        = filename(filePath)
     let outputDir   = Path.resolve(downloadPath, "comet-dist")
     let outputName  = `${name}.js`
@@ -81,7 +81,9 @@ export default class Repo {
     }
 
     let config
-    if(fs.existsSync(Path.join(downloadPath, "webpack.config.js")))
+    if(options && options.webpackConfigPath)
+      config = configTemplate(templateOptions, Object.assign(options, { loadUserConfig: true }))
+    else if(fs.existsSync(Path.join(downloadPath, "webpack.config.js")))
       config = configTemplate(templateOptions)
     else
       config = configTemplate(templateOptions, { loadUserConfig: false })
@@ -180,7 +182,13 @@ function configTemplate({ entry, library, path, filename }, options) {
       ]
     }`
   } else {
-    userConfig  = `var defaultConfig = require("./webpack.config.js")`
+    let userConfigPath
+    if(options && options.webpackConfigPath)
+      userConfigPath = [".", options.webpackConfigPath].join("/")
+    else
+      userConfigPath = [".", "webpack.config.js"].join("/")
+
+    userConfig  = `var defaultConfig = require("${ userConfigPath }")`
     module      = `defaultConfig.module`
     resolve     = `defaultConfig.resolve`
   }
