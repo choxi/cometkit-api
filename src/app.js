@@ -92,14 +92,16 @@ export default class App {
       console.log(`STDERR: ${ result.stderr }`)
 
       let uploads = docs.map(doc => {
-        if(doc.meta) {
-          let filePath = Path.join(doc.meta.path, doc.meta.filename)
+        return (async () => {
+          if(doc.meta) {
+            let filePath = Path.join(doc.meta.path, doc.meta.filename)
+            let uri      = await Repo.deploy(tmpPath, filePath, namespace)
 
-          return Repo.pack(tmpPath, filePath, namespace)
-          .then(response => doc.meta.webpackUri = response.uri)
-        } else {
-          return Promise.resolve
-        }
+            console.log(`URI: ${uri}`)
+
+            doc.meta.webpackUri = uri
+          }
+        })()
       })
 
       // Upload to S3

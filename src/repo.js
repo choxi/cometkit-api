@@ -66,61 +66,82 @@ export default class Repo {
     })
   }
 
-  static pack(repoPath, path, repo) {
-    let name = Path.basename(path).split(".")[0]
+  static pack(downloadPath, filePath) {
+    let name        = filename(filePath)
+    let outputDir   = Path.resolve(downloadPath, "comet-dist")
+    let outputName  = `${name}.js`
+    let outputPath  = Path.join(outputDir, outputName)
 
-    if(name === "index")
-      name = Path.dirname(path).split(Path.sep).pop()
-
-    let directory = Path.resolve(repoPath, "comet-dist")
-    let filename  = `${name}.js`
+    // Merge user config or use default
+    let templateOptions = {
+      entry: filePath, 
+      library: capitalize(name), 
+      path: outputDir, 
+      filename: outputName
+    }
 
     let config
-    if(fs.existsSync(Path.join(repoPath, "webpack.config.js")))
-      config = configTemplate({ entry: path, library: capitalize(name), path: directory, filename: filename })
+    if(fs.existsSync(Path.join(downloadPath, "webpack.config.js")))
+      config = configTemplate(templateOptions)
     else
-      config = configTemplate({ entry: path, library: capitalize(name), path: directory, filename: filename }, { loadUserConfig: false })
+      config = configTemplate(templateOptions, { loadUserConfig: false })
 
+    // Write Comet webpack config 
     let webpackConfigName = `${name}.webpack.js`
-    let webpackConfigPath = Path.join(repoPath, webpackConfigName)
-
+    let webpackConfigPath = Path.join(downloadPath, webpackConfigName)
     fs.writeFileSync(webpackConfigPath, config)
 
     let appDir = Path.dirname(require.main.filename)
+
     return new Promise((resolve, reject) => {
-      exec(`NODE_ENV=production NODE_PATH='${appDir}' webpack -p --config ${webpackConfigName}`, { cwd: repoPath })
+      exec(`NODE_ENV=production NODE_PATH='${appDir}' webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
       .then((result) => {
         console.log(`WEBPACK STDOUT: ${ result.stdout }`)
         console.log(`WEBPACK STDERR: ${ result.stderr }`)
 
-        let key     = [repo, filename].join("/")
-        let bucket  = process.env.S3_BUCKET
+        resolve(outputPath)
+      })
+    })
+  }
 
-        let params = {
-          localFile: Path.join(directory, filename),
-          s3Params: {
-            ACL: "public-read",
-            Bucket: bucket,
-            Key: key
-          }
+  static async deploy(downloadPath, filePath, keyPrefix) {
+    let name        = filename(filePath)
+    let outputName  = `${name}.js`
+    let outputPath  = await this.pack(downloadPath, filePath)
+
+    let bucket          = process.env.S3_BUCKET
+    let key             = [keyPrefix, outputName].join("/")
+    let { uri }         = await this.upload(bucket, key, outputPath)
+
+    return uri
+  }
+
+  static upload(bucket, key, localFile) {
+    return new Promise((resolve, reject) => {
+      let params = {
+        localFile: localFile,
+        s3Params: {
+          ACL: "public-read",
+          Bucket: bucket,
+          Key: key
         }
+      }
 
-        let uploader = client.uploadFile(params)
+      let uploader = client.uploadFile(params)
 
-        uploader.on('error', function(err) {
-          console.error("unable to upload:", err.stack)
-        })
+      uploader.on("error", function(err) {
+        console.error("unable to upload:", err.stack)
+      })
 
-        uploader.on('progress', function() {
-          console.log("progress", uploader.progressMd5Amount, uploader.progressAmount, uploader.progressTotal)
-        })
+      uploader.on("progress", function() {
+        console.log("progress", uploader.progressMd5Amount, uploader.progressAmount, uploader.progressTotal)
+      })
 
-        uploader.on('end', function() {
-          console.log("done uploading")
+      uploader.on("end", function() {
+        console.log("done uploading")
 
-          let uri = `https://s3-us-west-1.amazonaws.com/${bucket}/${key}`
-          resolve({ uri: uri })
-        })
+        let uri = `https://s3-us-west-1.amazonaws.com/${bucket}/${key}`
+        resolve({ uri: uri })
       })
     })
   }
@@ -128,6 +149,14 @@ export default class Repo {
 
 function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+function filename(path) {
+  let name = Path.basename(path).split(".")[0]
+  if(name === "index")
+    name = Path.dirname(path).split(Path.sep).pop()
+
+  return name
 }
 
 function configTemplate({ entry, library, path, filename }, options) {
@@ -151,7 +180,7 @@ function configTemplate({ entry, library, path, filename }, options) {
       ]
     }`
   } else {
-    userConfig  = `var defaultConfig = require("./webpack.dev.js")`
+    userConfig  = `var defaultConfig = require("./webpack.config.js")`
     module      = `defaultConfig.module`
     resolve     = `defaultConfig.resolve`
   }
