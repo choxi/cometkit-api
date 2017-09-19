@@ -87,7 +87,7 @@ export default class App {
       docs = this.process(tmpPath)
 
       // Build sources
-      let result = await exec("npm install", { cwd: Path.resolve(tmpPath) })
+      let result = await exec("npm install --dev", { cwd: Path.resolve(tmpPath) })
       console.log(`STDOUT: ${ result.stdout }`)
       console.log(`STDERR: ${ result.stderr }`)
 
