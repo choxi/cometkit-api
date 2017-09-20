@@ -94,9 +94,9 @@ export default class Repo {
     fs.writeFileSync(webpackConfigPath, config)
     console.log(`Injected ${webpackConfigPath}`)
 
-    let appDir = process.cwd()
+    let modulesPath = Path.join(process.cwd(), "node_modules")
     return new Promise((resolve, reject) => {
-      exec(`NODE_ENV=production NODE_PATH='${appDir}' webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
+      exec(`NODE_ENV=production NODE_PATH='${modulesPath}' webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
       .then((result) => {
         console.log(`WEBPACK STDOUT: ${ result.stdout }`)
         console.log(`WEBPACK STDERR: ${ result.stderr }`)
