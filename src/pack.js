@@ -20,8 +20,10 @@ async function doPack(repo, filePath) {
   console.log(result.stderr)
   console.log("Installed dependencies.")
 
-  let packConfig = { webpackConfigPath: "webpack.dev.js" }
-  let outputPath  = await Repo.pack(downloadPath, filePath, packConfig)
+  let packConfig, outputPath
+  try {
+    outputPath = await Repo.pack(downloadPath, filePath, packConfig)
+  } catch(e) {}
   
   // Create Stage
   let stageName = capitalize(path.basename(outputPath).split(".")[0])
@@ -66,7 +68,7 @@ async function download(repo, downloadPath) {
 }
 
 async function main() {
-  let output = await doPack("choxi/soapee-ui", "./src/app/components/shareThis.js")
+  let output = await doPack("choxi/progress", "./src/Circle.js")
   console.log(output)
 }
 

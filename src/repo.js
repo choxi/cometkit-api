@@ -66,7 +66,7 @@ export default class Repo {
     })
   }
 
-  static pack(downloadPath, filePath, options) {
+  static async pack(downloadPath, filePath, options) {
     let name        = filename(filePath)
     let outputDir   = Path.resolve(downloadPath, "comet-dist")
     let outputName  = `${name}.js`
@@ -93,6 +93,10 @@ export default class Repo {
     let webpackConfigPath = Path.join(downloadPath, webpackConfigName)
     fs.writeFileSync(webpackConfigPath, config)
     console.log(`Injected ${webpackConfigPath}`)
+
+    // Inject babel-preset-env
+    let result = exec(`npm install babel-preset-env`, { cwd: downloadPath })
+    console.log("Injected babel-preset-env")
 
     let modulesPath = Path.join(process.cwd(), "node_modules")
     return new Promise((resolve, reject) => {
@@ -165,7 +169,7 @@ function configTemplate({ entry, library, path, filename }, options) {
   let userConfig, module, resolve
   if(options && !options.loadUserConfig) {
     userConfig  = ""
-    resolve     = "null"
+    resolve     = "undefined"
     module      = `{
       loaders: [
         {
@@ -176,7 +180,7 @@ function configTemplate({ entry, library, path, filename }, options) {
           test: /\.(js|jsx)$/,
           loader: require.resolve('babel-loader'),
           query: {
-            presets: ['react']
+            presets: ['env', 'react']
           }
         }
       ]
@@ -201,7 +205,6 @@ function configTemplate({ entry, library, path, filename }, options) {
       output: {
         libraryTarget: "var",
         library: "${ library }",
-        libraryExport: "default",
         path: "${ path }",
         filename: "${ filename }"
       },
