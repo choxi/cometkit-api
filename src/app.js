@@ -50,8 +50,7 @@ export default class App {
         console.log(`ACTION: ${formatted}`)
 
         if(action.type === "CREATE_DOCS") {
-          let tmpPath = Path.join("/", "tmp", action.repo)
-          let docs = await Repo.createDocs(action.owner, action.repo, tmpPath)
+          let docs = await Repo.createDocs(action.owner, action.repo)
 
           ws.send(JSON.stringify({ docs: docs }))
         }

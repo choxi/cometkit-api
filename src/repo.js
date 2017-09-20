@@ -3,7 +3,7 @@ import webpack from "webpack"
 import s3Client from "s3"
 import dotenv from "dotenv"
 import { exec } from "child-process-promise"
-import fs from "fs"
+import fs from "fs-extra"
 import AWS from "aws-sdk"
 import fetch from "node-fetch"
 import downloadRepo from "download-github-repo"
@@ -22,7 +22,8 @@ const client  = s3Client.createClient({ s3Options: s3Options })
 const s3      = new AWS.S3(s3Options)
 
 export default class Repo {
-  static async createDocs(owner, repo, tmpPath) {
+  static async createDocs(owner, repo) {
+    let tmpPath   = Path.join("/", "tmp", owner, repo)
     let githubUrl = `https://api.github.com/repos/${ owner }/${ repo }/git/refs/heads/master`
     let ref       = await fetch(githubUrl).then(response => response.json())
     let sha       = ref.object.sha
@@ -37,13 +38,16 @@ export default class Repo {
     if(exists && docs)
       return docs
     else {
+      console.log(`Downloading repository: ${namespace}`)
       await download(namespace, tmpPath)
       docs = getJsDocs(tmpPath)
 
       // Install dependencies
       let result = await exec("npm install", { cwd: Path.resolve(tmpPath) })
-      console.log(`STDOUT: ${ result.stdout }`)
-      console.log(`STDERR: ${ result.stderr }`)
+      if(result.stdout)
+        console.log(`STDOUT: ${ result.stdout }`)
+      if(result.stderr)
+        console.log(`STDERR: ${ result.stderr }`)
 
       let uploads = docs.map(doc => {
         return (async () => {
@@ -113,27 +117,30 @@ export default class Repo {
     })
   }
 
-  static async pack(downloadPath, filePath, options) {
-    let name        = filename(filePath)
+  static async pack(downloadPath, filePath, options = {}) {
+    let name        = modulename(filePath)
     let outputDir   = Path.resolve(downloadPath, "comet-dist")
     let outputName  = `${name}.js`
     let outputPath  = Path.join(outputDir, outputName)
+    let library     = options.library || capitalize(name)
 
     // Merge user config or use default
     let templateOptions = {
       entry: filePath, 
-      library: capitalize(name), 
+      library: library, 
       path: outputDir, 
       filename: outputName
     }
 
-    let config
-    if(options && options.webpackConfigPath)
-      config = configTemplate(templateOptions, Object.assign(options, { loadUserConfig: true }))
+    let templateConfig
+    if(options.webpackConfigPath)
+      templateConfig = Object.assign(options, { loadUserConfig: true })
     else if(fs.existsSync(Path.join(downloadPath, "webpack.config.js")))
-      config = configTemplate(templateOptions)
+      templateConfig = options 
     else
-      config = configTemplate(templateOptions, { loadUserConfig: false })
+      templateConfig = Object.assign(options, { loadUserConfig: false })
+
+    let config = configTemplate(templateOptions, templateConfig)
 
     // Write Comet webpack config 
     let webpackConfigName = `${name}.webpack.js`
@@ -145,7 +152,7 @@ export default class Repo {
     await exec(`npm install babel-preset-env`, { cwd: downloadPath })
     console.log("Injected babel-preset-env")
 
-    // Build component
+    // Pack component
     let modulesPath = Path.join(process.cwd(), "node_modules")
     let result      = await exec(`NODE_ENV=production NODE_PATH='${modulesPath}' webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
     console.log(`WEBPACK STDOUT: ${ result.stdout }`)
@@ -157,9 +164,9 @@ export default class Repo {
 
   static async deploy(doc, downloadPath, keyPrefix) {
     let filePath = Path.join(doc.meta.path, doc.meta.filename)
-    let demoCode = doc.examples[0]
+    let fileDir  = Path.dirname(filePath)
 
-    let name        = filename(filePath)
+    let name        = modulename(filePath)
     let outputName  = `${name}.js`
     let outputPath  = await this.pack(downloadPath, filePath)
 
@@ -168,9 +175,18 @@ export default class Repo {
     let key       = [keyPrefix, outputName].join("/")
     let moduleUri = await this.upload(bucket, key, outputPath)
 
+
+    // Pack demo code
+    let demoPath = Path.join(fileDir, `${name}Demo.js`)
+    let demoCode = doc.examples[0]
+    let demoModuleName = "Demo"
+    fs.writeFileSync(demoPath, demoCode)
+    let packedDemoCodePath = await this.pack(downloadPath, demoPath, { library: demoModuleName })
+    let packedDemoCode = fs.readFileSync(packedDemoCodePath)
+
     // Create and Upload Stage 
     let stageName = `${name}.html`
-    let stage     = stageTemplate(name, moduleUri, demoCode)
+    let stage     = stageTemplate(name, moduleUri, packedDemoCode, demoModuleName)
     let stagePath = Path.join(Path.dirname(outputPath), `${name}.html`)
     fs.writeFileSync(stagePath, stage)
 
@@ -215,7 +231,7 @@ function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-function filename(path) {
+function modulename(path) {
   let name = Path.basename(path).split(".")[0]
   if(name === "index")
     name = Path.dirname(path).split(Path.sep).pop()
@@ -223,9 +239,11 @@ function filename(path) {
   return name
 }
 
-function configTemplate({ entry, library, path, filename }, options) {
+function configTemplate({ entry, library, path, filename }, options = {}) {
+  options.loadUserConfig = options.loadUserConfig || true
+
   let userConfig, module, resolve
-  if(options && !options.loadUserConfig) {
+  if(!options.loadUserConfig) {
     userConfig  = ""
     resolve     = "undefined"
     module      = `{
@@ -276,7 +294,7 @@ function configTemplate({ entry, library, path, filename }, options) {
   `
 }
 
-function stageTemplate(stageName, srcPath, demoCode) {
+function stageTemplate(stageName, srcPath, demoCode, demoModuleName) {
   return `
     <html>
       <body>
@@ -286,10 +304,12 @@ function stageTemplate(stageName, srcPath, demoCode) {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.6.1/react.js" type="text/javascript"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.6.1/react-dom.js" type="text/javascript"></script>
         <script src="${ srcPath }" type="text/javascript"></script>
+        <script type="text/javascript">
+          ${ demoCode }
+        </script>
         <script>
-          var element = (${ demoCode })
           var container = document.getElementById("Stage")
-          ReactDOM.render(element, container)
+          ReactDOM.render(${ demoModuleName }, container)
         </script>
       </body>
     </html>
@@ -298,6 +318,7 @@ function stageTemplate(stageName, srcPath, demoCode) {
 
 function download(repo, directory) {
   return new Promise((resolve, reject) => {
+    fs.removeSync(directory) 
     downloadRepo(repo, directory, resolve)
   })
 }
