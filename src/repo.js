@@ -95,19 +95,17 @@ export default class Repo {
     console.log(`Injected ${webpackConfigPath}`)
 
     // Inject babel-preset-env
-    let result = exec(`npm install babel-preset-env`, { cwd: downloadPath })
+    await exec(`npm install babel-preset-env`, { cwd: downloadPath })
     console.log("Injected babel-preset-env")
 
+    // Build component
     let modulesPath = Path.join(process.cwd(), "node_modules")
-    return new Promise((resolve, reject) => {
-      exec(`NODE_ENV=production NODE_PATH='${modulesPath}' webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
-      .then((result) => {
-        console.log(`WEBPACK STDOUT: ${ result.stdout }`)
-        console.log(`WEBPACK STDERR: ${ result.stderr }`)
+    let result      = await exec(`NODE_ENV=production NODE_PATH='${modulesPath}' webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
+    console.log(`WEBPACK STDOUT: ${ result.stdout }`)
+    console.log(`WEBPACK STDERR: ${ result.stderr }`)
 
-        resolve(outputPath)
-      })
-    })
+    console.log(`outputPath: ${outputPath}`)
+    return outputPath
   }
 
   static async deploy(downloadPath, filePath, keyPrefix) {

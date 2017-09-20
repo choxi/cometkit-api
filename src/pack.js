@@ -21,9 +21,7 @@ async function doPack(repo, filePath) {
   console.log("Installed dependencies.")
 
   let packConfig, outputPath
-  try {
-    outputPath = await Repo.pack(downloadPath, filePath, packConfig)
-  } catch(e) {}
+  outputPath = await Repo.pack(downloadPath, filePath, packConfig)
   
   // Create Stage
   let stageName = capitalize(path.basename(outputPath).split(".")[0])
@@ -68,9 +66,11 @@ async function download(repo, downloadPath) {
 }
 
 async function main() {
-  let output = await doPack("choxi/progress", "./src/Circle.js")
+  let repo    = process.argv[2]
+  let entry   = process.argv[3]
+
+  let output  = await doPack(repo, entry)
   console.log(output)
 }
 
 main()
-
