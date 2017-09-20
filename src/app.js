@@ -36,7 +36,7 @@ export default class App {
         console.log("Client connected.")
       })
 
-      ws.on("message", (msg) => {
+      ws.on("message", async (msg) => {
         let action, formatted
 
         try {
@@ -47,11 +47,13 @@ export default class App {
           return
         }
 
-        console.log(`Action:\n${formatted}`)
+        console.log(`ACTION: ${formatted}`)
 
         if(action.type === "CREATE_DOCS") {
           let tmpPath = Path.join("/", "tmp", action.repo)
-          Repo.createDocs(ws, action.owner, action.repo, tmpPath)
+          let docs = await Repo.createDocs(action.owner, action.repo, tmpPath)
+
+          ws.send(JSON.stringify({ docs: docs }))
         }
       })
     })

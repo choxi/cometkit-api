@@ -22,7 +22,7 @@ const client  = s3Client.createClient({ s3Options: s3Options })
 const s3      = new AWS.S3(s3Options)
 
 export default class Repo {
-  static async createDocs(ws, owner, repo, tmpPath) {
+  static async createDocs(owner, repo, tmpPath) {
     let githubUrl = `https://api.github.com/repos/${ owner }/${ repo }/git/refs/heads/master`
     let ref       = await fetch(githubUrl).then(response => response.json())
     let sha       = ref.object.sha
@@ -35,25 +35,24 @@ export default class Repo {
       docs = JSON.parse(docs)
 
     if(exists && docs)
-      ws.send(JSON.stringify({ docs: docs }))
+      return docs
     else {
       await download(namespace, tmpPath)
       docs = getJsDocs(tmpPath)
 
-      // Build sources
-      let result = await exec("npm install --dev", { cwd: Path.resolve(tmpPath) })
+      // Install dependencies
+      let result = await exec("npm install", { cwd: Path.resolve(tmpPath) })
       console.log(`STDOUT: ${ result.stdout }`)
       console.log(`STDERR: ${ result.stderr }`)
 
       let uploads = docs.map(doc => {
         return (async () => {
           if(doc.meta) {
-            let filePath = Path.join(doc.meta.path, doc.meta.filename)
-            let uri      = await Repo.deploy(tmpPath, filePath, namespace)
+            let { moduleUri, stageUri } = await Repo.deploy(doc, tmpPath, namespace)
 
-            console.log(`URI: ${uri}`)
-
-            doc.meta.webpackUri = uri
+            doc.meta.webpackUri = moduleUri
+            doc.meta.moduleUri  = moduleUri
+            doc.meta.stageUri   = stageUri
           }
         })()
       })
@@ -62,7 +61,7 @@ export default class Repo {
       await Promise.all(uploads)
       await Repo.add(namespace, "docs.comet.json", JSON.stringify(docs))
 
-      ws.send(JSON.stringify({ docs: docs }))
+      return docs
     }
   }
 
@@ -156,16 +155,29 @@ export default class Repo {
     return outputPath
   }
 
-  static async deploy(downloadPath, filePath, keyPrefix) {
+  static async deploy(doc, downloadPath, keyPrefix) {
+    let filePath = Path.join(doc.meta.path, doc.meta.filename)
+    let demoCode = doc.examples[0]
+
     let name        = filename(filePath)
     let outputName  = `${name}.js`
     let outputPath  = await this.pack(downloadPath, filePath)
 
-    let bucket          = process.env.S3_BUCKET
-    let key             = [keyPrefix, outputName].join("/")
-    let { uri }         = await this.upload(bucket, key, outputPath)
+    // Upload Module
+    let bucket    = process.env.S3_BUCKET
+    let key       = [keyPrefix, outputName].join("/")
+    let moduleUri = await this.upload(bucket, key, outputPath)
 
-    return uri
+    // Create and Upload Stage 
+    let stageName = `${name}.html`
+    let stage     = stageTemplate(name, moduleUri, demoCode)
+    let stagePath = Path.join(Path.dirname(outputPath), `${name}.html`)
+    fs.writeFileSync(stagePath, stage)
+
+    key = [keyPrefix, stageName].join("/")
+    let stageUri = await this.upload(bucket, key, stagePath)
+
+    return { moduleUri: moduleUri, stageUri: stageUri }
   }
 
   static upload(bucket, key, localFile) {
@@ -193,7 +205,7 @@ export default class Repo {
         console.log("done uploading")
 
         let uri = `https://s3-us-west-1.amazonaws.com/${bucket}/${key}`
-        resolve({ uri: uri })
+        resolve(uri)
       })
     })
   }
@@ -261,6 +273,26 @@ function configTemplate({ entry, library, path, filename }, options) {
       resolve: ${ resolve },
       module: ${ module }
     }
+  `
+}
+
+function stageTemplate(stageName, srcPath, demoCode) {
+  return `
+    <html>
+      <body>
+        <div id="Stage">
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.6.1/react.js" type="text/javascript"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/react/15.6.1/react-dom.js" type="text/javascript"></script>
+        <script src="${ srcPath }" type="text/javascript"></script>
+        <script>
+          var element = (${ demoCode })
+          var container = document.getElementById("Stage")
+          ReactDOM.render(element, container)
+        </script>
+      </body>
+    </html>
   `
 }
 
