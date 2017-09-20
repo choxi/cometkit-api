@@ -1,17 +1,13 @@
 import express    from "express"
 import BodyParser from "body-parser"
 import morgan     from "morgan"
-import download   from "download-github-repo"
 import cors       from "cors"
-import jsdoc      from "jsdoc-api"
-import glob       from "glob"
 import Path       from "path"
 import fs         from "fs"
 import expressWs  from "express-ws"
 import helmet     from "helmet"
 import Repo       from "./repo.js"
 import { exec }   from "child-process-promise"
-import fetch      from "node-fetch"
 
 export default class App {
   constructor() {
@@ -55,7 +51,7 @@ export default class App {
 
         if(action.type === "CREATE_DOCS") {
           let tmpPath = Path.join("/", "tmp", action.repo)
-          this.createDocs(ws, action.owner, action.repo, tmpPath)
+          Repo.createDocs(ws, action.owner, action.repo, tmpPath)
         }
       })
     })
@@ -65,73 +61,8 @@ export default class App {
     })
   }
 
-  async createDocs(ws, owner, repo, tmpPath) {
-    let githubUrl = `https://api.github.com/repos/${ owner }/${ repo }/git/refs/heads/master`
-    let ref       = await fetch(githubUrl).then(response => response.json())
-    let sha       = ref.object.sha
-
-    let namespace = [owner, repo, sha].join("/")
-    let exists    = await Repo.exists(namespace)
-    let docs      = await Repo.getFile(namespace, "docs.comet.json")
-
-    if(docs)
-      docs = JSON.parse(docs)
-
-    if(exists && docs)
-      ws.send(JSON.stringify({ docs: docs }))
-    else {
-      // Download repo
-      await this.download(namespace, tmpPath)
-
-      // Parse docs
-      docs = this.process(tmpPath)
-
-      // Build sources
-      let result = await exec("npm install --dev", { cwd: Path.resolve(tmpPath) })
-      console.log(`STDOUT: ${ result.stdout }`)
-      console.log(`STDERR: ${ result.stderr }`)
-
-      let uploads = docs.map(doc => {
-        return (async () => {
-          if(doc.meta) {
-            let filePath = Path.join(doc.meta.path, doc.meta.filename)
-            let uri      = await Repo.deploy(tmpPath, filePath, namespace)
-
-            console.log(`URI: ${uri}`)
-
-            doc.meta.webpackUri = uri
-          }
-        })()
-      })
-
-      // Upload to S3
-      await Promise.all(uploads)
-      await Repo.add(namespace, "docs.comet.json", JSON.stringify(docs))
-
-      ws.send(JSON.stringify({ docs: docs }))
-    }
-  }
-
-  download(repo, directory) {
-    return new Promise((resolve, reject) => {
-      download(repo, directory, resolve)
-    })
-  }
-
-  process(directory) {
-    let path  = Path.join(directory, "src", "**", "*.{jsx,js}")
-
-    let files = glob.sync(path)
-    let docs  = jsdoc.explainSync({ files: files })
-    docs      = docs.filter(doc => !doc.undocumented)
-
-    return docs
-  }
-
   start({ port }) {
     port = port || 3000
     this.router.listen(port, () => console.log(`Running on ${ port }...`))
   }
 }
-
-
