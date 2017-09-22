@@ -175,10 +175,6 @@ export default class Repo {
     fs.writeFileSync(webpackConfigPath, config)
     console.log(`Injected ${webpackConfigPath}`)
 
-    // Inject babel-preset-env
-    await exec(`npm install babel-preset-env`, { cwd: downloadPath })
-    console.log("Injected babel-preset-env")
-
     // Pack component
     let modulesPath = Path.join(process.cwd(), "node_modules")
     let result      = await exec(`NODE_ENV=production NODE_PATH='${modulesPath}' webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
