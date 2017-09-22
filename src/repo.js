@@ -49,9 +49,9 @@ export default class Repo {
         cometConfig = JSON.parse(fs.readFileSync(cometConfigPath))
 
       let stageSources = []
-      if(cometConfig.sources) {
+      if(cometConfig && cometConfig.sources) {
         let sourceUploads = cometConfig.sources.map((source) => {
-          let sourcePath  = Path.resolve(source)
+          let sourcePath  = Path.join(tmpPath, source)
           let filename    = Path.basename(sourcePath)
           let key         = [namespace, filename].join("/")
 
@@ -60,6 +60,7 @@ export default class Repo {
 
         // Upload sources in parallel
         stageSources = await Promise.all(sourceUploads)
+        console.log("Uploaded sources")
       }
 
       docs = getJsDocs(tmpPath)
