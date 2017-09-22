@@ -35,19 +35,20 @@ export default class Repo {
     if(docs)
       docs = JSON.parse(docs)
 
-    if(exists && docs)
+    if(exists && docs && !process.env.DISABLE_CACHE) {
+      console.log("Found cached docs")
       return docs
-    else {
+    } else {
+      console.log("No docs found in cache. Generating.")
       console.log(`Downloading repository: ${namespace}`)
       await download(namespace, tmpPath)
+
       docs = getJsDocs(tmpPath)
 
       // Install dependencies
       let result = await exec("npm install", { cwd: Path.resolve(tmpPath) })
-      if(result.stdout)
-        console.log(`STDOUT: ${ result.stdout }`)
-      if(result.stderr)
-        console.log(`STDERR: ${ result.stderr }`)
+      console.log(result.stdout)
+      console.log(result.stderr)
 
       let uploads = docs.map(doc => {
         return (async () => {
@@ -126,9 +127,9 @@ export default class Repo {
 
     // Merge user config or use default
     let templateOptions = {
-      entry: filePath, 
-      library: library, 
-      path: outputDir, 
+      entry: filePath,
+      library: library,
+      path: outputDir,
       filename: outputName
     }
 
@@ -136,13 +137,13 @@ export default class Repo {
     if(options.webpackConfigPath)
       templateConfig = Object.assign(options, { loadUserConfig: true })
     else if(fs.existsSync(Path.join(downloadPath, "webpack.config.js")))
-      templateConfig = options 
+      templateConfig = options
     else
       templateConfig = Object.assign(options, { loadUserConfig: false })
 
     let config = configTemplate(templateOptions, templateConfig)
 
-    // Write Comet webpack config 
+    // Write Comet webpack config
     let webpackConfigName = `${name}.webpack.js`
     let webpackConfigPath = Path.join(downloadPath, webpackConfigName)
     fs.writeFileSync(webpackConfigPath, config)
@@ -178,13 +179,18 @@ export default class Repo {
 
     // Pack demo code
     let demoPath = Path.join(fileDir, `${name}Demo.js`)
-    let demoCode = doc.examples[0]
+    let demoCode = `
+      window.RealDemo = (function() { 
+        ${ doc.examples[0] } 
+      })()
+    `
+
     let demoModuleName = "Demo"
     fs.writeFileSync(demoPath, demoCode)
-    let packedDemoCodePath = await this.pack(downloadPath, demoPath, { library: demoModuleName })
+    let packedDemoCodePath = await this.pack(downloadPath, demoPath, { library: demoModuleName, loadUserConfig: false })
     let packedDemoCode = fs.readFileSync(packedDemoCodePath)
 
-    // Create and Upload Stage 
+    // Create and Upload Stage
     let stageName = `${name}.html`
     let stage     = stageTemplate(name, moduleUri, packedDemoCode, demoModuleName)
     let stagePath = Path.join(Path.dirname(outputPath), `${name}.html`)
@@ -240,7 +246,8 @@ function modulename(path) {
 }
 
 function configTemplate({ entry, library, path, filename }, options = {}) {
-  options.loadUserConfig = options.loadUserConfig || true
+  if(options.loadUserConfig === undefined)
+    options.loadUserConfig = true
 
   let userConfig, module, resolve
   if(!options.loadUserConfig) {
@@ -254,9 +261,10 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
         },
         {
           test: /\.(js|jsx)$/,
-          loader: require.resolve('babel-loader'),
-          query: {
-            presets: ['env', 'react']
+          loader: "babel-loader",
+          options: {
+            presets: ["env", "react"],
+            plugins: ["implicit-return"]
           }
         }
       ]
@@ -281,6 +289,7 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
       output: {
         libraryTarget: "var",
         library: "${ library }",
+        libraryExport: "default",
         path: "${ path }",
         filename: "${ filename }"
       },
@@ -309,7 +318,7 @@ function stageTemplate(stageName, srcPath, demoCode, demoModuleName) {
         </script>
         <script>
           var container = document.getElementById("Stage")
-          ReactDOM.render(${ demoModuleName }, container)
+          ReactDOM.render(RealDemo, container)
         </script>
       </body>
     </html>
@@ -318,7 +327,7 @@ function stageTemplate(stageName, srcPath, demoCode, demoModuleName) {
 
 function download(repo, directory) {
   return new Promise((resolve, reject) => {
-    fs.removeSync(directory) 
+    fs.removeSync(directory)
     downloadRepo(repo, directory, resolve)
   })
 }

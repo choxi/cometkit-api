@@ -25,6 +25,7 @@
   "dependencies": {
     "aws-sdk": "2.116.0",
     "babel-loader": "7.1.2",
+    "babel-plugin-implicit-return": "1.0.1",
     "babel-plugin-transform-es3-property-literals": "6.22.0",
     "babel-preset-env": "1.6.0",
     "babel-preset-es2015": "6.24.1",
