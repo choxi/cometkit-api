@@ -43,7 +43,27 @@ export default class Repo {
       console.log(`Downloading repository: ${namespace}`)
       await download(namespace, tmpPath)
 
+      let cometConfig
+      let cometConfigPath = Path.join(tmpPath, "comet.json")
+      if(fs.existsSync(cometConfigPath))
+        cometConfig = JSON.parse(fs.readFileSync(cometConfigPath))
+
+      let stageSources = []
+      if(cometConfig.sources) {
+        let sourceUploads = cometConfig.sources.map((source) => {
+          let sourcePath  = Path.resolve(source)
+          let filename    = Path.basename(sourcePath)
+          let key         = [namespace, filename].join("/")
+
+          return this.upload(process.env.S3_BUCKET, key, sourcePath)
+        })
+
+        // Upload sources in parallel
+        stageSources = await Promise.all(sourceUploads)
+      }
+
       docs = getJsDocs(tmpPath)
+      console.log("Parsed JsDoc comments")
 
       // Install dependencies
       let result = await exec("npm install", { cwd: Path.resolve(tmpPath) })
@@ -58,7 +78,7 @@ export default class Repo {
       let uploads = docs.map(doc => {
         return (async () => {
           if(doc.meta) {
-            let { moduleUri, stageUri } = await Repo.deploy(doc, tmpPath, namespace)
+            let { moduleUri, stageUri } = await Repo.deploy(doc, tmpPath, namespace, stageSources)
 
             doc.meta.webpackUri = moduleUri
             doc.meta.moduleUri  = moduleUri
@@ -168,7 +188,7 @@ export default class Repo {
     return outputPath
   }
 
-  static async deploy(doc, downloadPath, keyPrefix) {
+  static async deploy(doc, downloadPath, keyPrefix, stageSources) {
     let filePath = Path.join(doc.meta.path, doc.meta.filename)
     let fileDir  = Path.dirname(filePath)
 
@@ -180,7 +200,6 @@ export default class Repo {
     let bucket    = process.env.S3_BUCKET
     let key       = [keyPrefix, outputName].join("/")
     let moduleUri = await this.upload(bucket, key, outputPath)
-
 
     // Pack demo code
     let demoPath = Path.join(fileDir, `${name}Demo.js`)
@@ -197,7 +216,7 @@ export default class Repo {
 
     // Create and Upload Stage
     let stageName = `${name}.html`
-    let stage     = stageTemplate(name, moduleUri, packedDemoCode, demoModuleName)
+    let stage     = stageTemplate(name, moduleUri, packedDemoCode, demoModuleName, stageSources)
     let stagePath = Path.join(Path.dirname(outputPath), `${name}.html`)
     fs.writeFileSync(stagePath, stage)
 
@@ -311,9 +330,19 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
   `
 }
 
-function stageTemplate(stageName, srcPath, demoCode, demoModuleName) {
+function stageTemplate(stageName, srcPath, demoCode, demoModuleName, sourceUris) {
+  let sources = sourceUris.map((sourceUri) => {
+    if(sourceUri.match(/\.js$/))
+      return `<script src="${ sourceUri }" type="text/javascript"></script>`
+    else if(sourceUri.match(/\.css$/))
+      return `<link rel="stylesheet" type="text/css" href="${ sourceUri }">`
+  })
+
   return `
     <html>
+      <head>
+        ${ sources.join("\n") }
+      </head>
       <body>
         <div id="Stage">
         </div>
