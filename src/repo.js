@@ -49,6 +49,11 @@ export default class Repo {
       let result = await exec("npm install", { cwd: Path.resolve(tmpPath) })
       console.log(result.stdout)
       console.log(result.stderr)
+      console.log("Installed dependencies")
+      result = await exec("npm install --only=dev", { cwd: Path.resolve(tmpPath) })
+      console.log(result.stdout)
+      console.log(result.stderr)
+      console.log("Installed devDependencies")
 
       let uploads = docs.map(doc => {
         return (async () => {

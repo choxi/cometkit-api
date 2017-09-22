@@ -18,9 +18,6 @@ async function doPack(repo, filePath) {
   let result = await exec("npm install", { cwd: downloadPath })
   console.log(result.stdout)
   console.log(result.stderr)
-  result = await exec("npm install --only=dev", { cwd: downloadPath })
-  console.log(result.stdout)
-  console.log(result.stderr)
   console.log("Installed dependencies.")
 
   let packConfig, outputPath
