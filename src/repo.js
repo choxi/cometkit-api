@@ -292,6 +292,14 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
             presets: ["env", "react"],
             plugins: ["implicit-return"]
           }
+        },
+        {
+          test: [/\.bmp$/, /\.gif$/, /\.jpe?g$/, /\.png$/, /\.svg$/],
+          loader: 'url-loader',
+          options: {
+            limit: 5000000,
+            name: 'static/media/[name].[hash:8].[ext]'
+          }
         }
       ]
     }`
