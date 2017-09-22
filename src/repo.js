@@ -282,8 +282,8 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
     module      = `{
       loaders: [
         {
-          test: /\.(scss|sass)$/,
-          loader: 'style-loader!css-loader!autoprefixer!sass-loader',
+          test: /\.(css|scss|sass)$/,
+          loader: 'style-loader!css-loader!sass-loader',
         },
         {
           test: /\.(js|jsx)$/,
@@ -317,6 +317,8 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
   }
 
   return `
+    var path = require("path")
+
     ${ userConfig }
 
     module.exports = {
@@ -327,6 +329,9 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
         libraryExport: "default",
         path: "${ path }",
         filename: "${ filename }"
+      },
+      resolveLoader: {
+        modules: [ path.resolve("./node_modules"), path.resolve("/home/ec2-user/app/node_modules") ]
       },
       externals: {
         react: "React",
