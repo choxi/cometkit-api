@@ -254,10 +254,11 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
   if(options.loadUserConfig === undefined)
     options.loadUserConfig = true
 
-  let userConfig, module, resolve
+  let userConfig, module, resolve, plugins
   if(!options.loadUserConfig) {
     userConfig  = ""
     resolve     = "undefined"
+    plugins     = "undefined"
     module      = `{
       loaders: [
         {
@@ -284,6 +285,7 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
     userConfig  = `var defaultConfig = require("${ userConfigPath }")`
     module      = `defaultConfig.module`
     resolve     = `defaultConfig.resolve`
+    plugins     = `defaultConfig.plugins`
   }
 
   return `
@@ -303,7 +305,8 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
         "react-dom": "ReactDOM"
       },
       resolve: ${ resolve },
-      module: ${ module }
+      module: ${ module },
+      plugins: ${ plugins }
     }
   `
 }
