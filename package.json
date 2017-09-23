@@ -9,7 +9,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "pack": "NODE_ENV=development node -r 'babel-register' src/pack.js",
     "prod": "NODE_ENV=production index.js",
-    "scratch": "NODE_ENV=development node -r 'babel-register' ./scratch.js"
+    "scratch": "NODE_ENV=development node -r 'babel-register' ./scratch.js",
+    "docker": "docker build -t cometkit-packer ."
   },
   "babel": {
     "presets": [
