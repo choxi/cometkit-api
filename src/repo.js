@@ -351,7 +351,11 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
     plugins     = `defaultConfig.plugins`
   }
 
-  let cometkitApiModulesPath = Path.join(process.cwd(), "node_modules")
+  let directories = __dirname.split(Path.sep)
+  directories.pop()
+
+  let appPath = directories.join("/")
+  let cometkitApiModulesPath = Path.join(appPath, "node_modules")
   return `
     var path = require("path")
 
