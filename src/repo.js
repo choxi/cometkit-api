@@ -69,8 +69,10 @@ export default class Repo {
     let exists    = await Repo.exists(namespace)
     let docs      = await Repo.getFile(namespace, "docs.comet.json")
 
-    if(docs)
+    if(docs) {
       docs = JSON.parse(docs)
+      fs.writeFileSync(Path.join(tmpPath, "comet-dist", "docs.comet.json"), JSON.stringify(docs))
+    }
 
     if(exists && docs && !process.env.DISABLE_CACHE) {
       console.log("Found cached docs")
