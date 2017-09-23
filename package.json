@@ -8,7 +8,7 @@
     "dev": "NODE_ENV=development node index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "pack": "NODE_ENV=development node -r 'babel-register' src/pack.js",
-    "prod": "pm2 start index.js --name api",
+    "prod": "npm run docker && pm2 start index.js --name api",
     "scratch": "NODE_ENV=development node -r 'babel-register' ./scratch.js",
     "docker": "docker build -t cometkit-packer ."
   },
