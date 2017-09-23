@@ -41,8 +41,8 @@ export default class Repo {
   static async newCreateDocs(owner, repo) {
     let buildPath       = Path.join("/tmp", owner, repo)
     let dockerDistPath  = Path.join("/tmp")
-    let environment     = [ `-e AWS_ACCESS_KEY_ID="${ process.env.AWS_ACCESS_KEY_ID }"`,
-                            `-e AWS_SECRET_ACCESS_KEY="${ process.env.AWS_SECRET_ACCESS_KEY }"`,
+    let environment     = [ `-e AWS_ACCESS_KEY_ID="${ process.env.S3_ACCESS_KEY_ID }"`,
+                            `-e AWS_SECRET_ACCESS_KEY="${ process.env.S3_SECRET_ACCESS_KEY }"`,
                             `-e AWS_REGION="${ process.env.AWS_REGION }"`,
                             `-e S3_BUCKET="${ process.env.S3_BUCKET }"`,
                             `-e NODE_ENV=production`,
