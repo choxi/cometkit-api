@@ -3,12 +3,14 @@ import webpack from "webpack"
 import s3Client from "s3"
 import dotenv from "dotenv"
 import { exec } from "child-process-promise"
+import { spawn } from "child_process"
 import fs from "fs-extra"
 import AWS from "aws-sdk"
 import fetch from "node-fetch"
 import downloadRepo from "download-github-repo"
 import glob from "glob"
 import jsdoc from "jsdoc-api"
+import process from "process"
 
 dotenv.config()
 
@@ -21,8 +23,43 @@ const s3Options = {
 const client  = s3Client.createClient({ s3Options: s3Options })
 const s3      = new AWS.S3(s3Options)
 
+function streamExec(command) {
+  return new Promise((resolve, reject) => {
+    let childProcess = spawn(command, [], { shell: true })
+
+    childProcess.stdout.on('data', data => console.log(data.toString()))
+    childProcess.stderr.on('data', data => console.log(data.toString()))
+
+    childProcess.on('close', code => resolve(code))
+    childProcess.on('error', reject)
+  })
+}
+
 export default class Repo {
-  static async createDocs(owner, repo) {
+  static async newCreateDocs(owner, repo) {
+    let buildPath       = Path.join("/tmp", owner, repo)
+    let dockerDistPath  = Path.join("/tmp")
+    let environment     = [ `-e AWS_ACCESS_KEY_ID="${ process.env.AWS_ACCESS_KEY_ID }"`,
+                            `-e AWS_SECRET_ACCESS_KEY="${ process.env.AWS_SECRET_ACCESS_KEY }"`,
+                            `-e AWS_REGION="${ process.env.AWS_REGION }"`,
+                            `-e S3_BUCKET="${ process.env.S3_BUCKET }"`,
+                            `-e NODE_ENV=production`,
+                            `-e NODE_PATH=/cometkit-api/node_modules` ]
+
+    if(process.env.DISABLE_CACHE)
+        environment.push("-e DISABLE_CACHE=true")
+
+    environment = environment.join(" ")
+
+    await streamExec(`docker run -v ${ buildPath }:${ dockerDistPath } ${ environment } cometkit-packer node -r 'babel-register' /cometkit-api/src/pack.js ${owner}/${repo}`)
+
+    let docsPath  = Path.join(buildPath, owner, repo, "comet-dist", "docs.comet.json")
+    let docs      = JSON.parse(fs.readFileSync(docsPath))
+
+    return docs
+  }
+
+  static async createDocs(owner, repo, options={}) {
     let tmpPath   = Path.join("/", "tmp", owner, repo)
     let githubUrl = `https://api.github.com/repos/${ owner }/${ repo }/git/refs/heads/master`
     let ref       = await fetch(githubUrl).then(response => response.json())
@@ -91,6 +128,7 @@ export default class Repo {
       // Upload to S3
       await Promise.all(uploads)
       await Repo.add(namespace, "docs.comet.json", JSON.stringify(docs))
+      fs.writeFileSync(Path.join(tmpPath, "comet-dist", "docs.comet.json"), JSON.stringify(docs))
 
       return docs
     }
@@ -177,7 +215,7 @@ export default class Repo {
 
     // Pack component
     let modulesPath = Path.join(process.cwd(), "node_modules")
-    let result      = await exec(`NODE_ENV=production NODE_PATH='${modulesPath}' webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
+    let result      = await exec(`webpack -p --config ${webpackConfigName}`, { cwd: downloadPath })
     console.log(`WEBPACK STDOUT: ${ result.stdout }`)
     console.log(`WEBPACK STDERR: ${ result.stderr }`)
 
@@ -312,6 +350,7 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
     plugins     = `defaultConfig.plugins`
   }
 
+  let cometkitApiModulesPath = Path.join(process.cwd(), "node_modules")
   return `
     var path = require("path")
 
@@ -327,7 +366,7 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
         filename: "${ filename }"
       },
       resolveLoader: {
-        modules: [ path.resolve("./node_modules"), path.resolve("/home/ec2-user/app/node_modules") ]
+        modules: [ path.resolve("./node_modules"), path.resolve("${ cometkitApiModulesPath }") ]
       },
       externals: {
         react: "React",

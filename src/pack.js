@@ -8,7 +8,7 @@ process.on('unhandledRejection', (reason, p) => {
   console.log('Unhandled Rejection at:', p, 'reason:', reason)
 })
 
-async function doPack(repo, filePath) {
+async function packFile(repo, filePath) {
   // Download repo 
   let downloadPath = path.resolve("/", "tmp", repo)
   await download(repo, downloadPath)
@@ -37,11 +37,12 @@ async function download(repo, downloadPath) {
 }
 
 async function main() {
-  let repo    = process.argv[2]
-  let entry   = process.argv[3]
+  let [owner, repo] = process.argv[2].split("/")
+  let buildPath     = process.argv[3]
 
-  let output  = await doPack(repo, entry)
-  console.log(output)
+  let docs = await Repo.createDocs(owner, repo, { buildPath: buildPath })
+
+  console.log(JSON.stringify(docs, null, 4))
 }
 
 main()
