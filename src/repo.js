@@ -23,9 +23,11 @@ const s3Options = {
 const client  = s3Client.createClient({ s3Options: s3Options })
 const s3      = new AWS.S3(s3Options)
 
-function streamExec(command) {
+function streamExec(command, options={}) {
+  options = Object.assign(options, { shell: true })
+
   return new Promise((resolve, reject) => {
-    let childProcess = spawn(command, [], { shell: true })
+    let childProcess = spawn(command, [], options)
 
     childProcess.stdout.on('data', data => console.log(data.toString()))
     childProcess.stderr.on('data', data => console.log(data.toString()))
@@ -107,9 +109,9 @@ export default class Repo {
       console.log("Parsed JsDoc comments")
 
       // Install dependencies
-      let result = await exec("npm install", { cwd: Path.resolve(tmpPath) })
+      let result = await streamExec("npm install", { cwd: Path.resolve(tmpPath) })
       console.log("Installed dependencies")
-      result = await exec("npm install --only=dev", { cwd: Path.resolve(tmpPath) })
+      result = await streamExec("npm install --only=dev", { cwd: Path.resolve(tmpPath) })
       console.log("Installed devDependencies")
 
       let uploads = docs.map(doc => {
