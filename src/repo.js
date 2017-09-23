@@ -71,6 +71,7 @@ export default class Repo {
 
     if(docs) {
       docs = JSON.parse(docs)
+      fs.ensureDirSync(Path.join(tmpPath, "comet-dist"))
       fs.writeFileSync(Path.join(tmpPath, "comet-dist", "docs.comet.json"), JSON.stringify(docs))
     }
 
