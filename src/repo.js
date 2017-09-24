@@ -423,6 +423,21 @@ function stageTemplate(stageName, srcPath, demoCode, demoModuleName, sourceUris)
           var container = document.getElementById("Stage")
           ReactDOM.render(RealDemo, container)
         </script>
+
+        <script>
+          function sendHeight() {
+            var body = document.body,
+                html = document.documentElement
+
+            var height = Math.max( body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight )
+
+            window.parent.postMessage({ height: height }, "*")
+          }
+
+          document.addEventListener("DOMContentLoaded", function(event) {
+            sendHeight()
+          })
+        </script>
       </body>
     </html>
   `
