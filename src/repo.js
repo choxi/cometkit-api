@@ -68,6 +68,10 @@ export default class Repo {
     fs.remove(buildPath)
     console.log("Cleaned up build directory.")
 
+    // Cleanup docker containers and volumes
+    streamExec(`${sudo} docker container prune -f`)
+    streamExec(`${sudo} docker volume prune -f`)
+
     return docs
   }
 
