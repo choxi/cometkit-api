@@ -59,7 +59,7 @@ export default class Repo {
     if(process.env.NODE_ENV === "production")
       sudo = "sudo"
 
-    await streamExec(`${sudo} docker run -v ${ buildPath }:${ dockerDistPath } ${ environment } cometkit-packer node -r 'babel-register' /cometkit-api/src/pack.js ${owner}/${repo}`)
+    await streamExec(`${sudo} docker run --rm -v ${ buildPath }:${ dockerDistPath } ${ environment } cometkit-packer node -r 'babel-register' /cometkit-api/src/pack.js ${owner}/${repo}`)
 
     let docsPath  = Path.join(buildPath, owner, repo, "comet-dist", "docs.comet.json")
     let docs      = JSON.parse(fs.readFileSync(docsPath))
