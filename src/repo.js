@@ -11,6 +11,7 @@ import downloadRepo from "download-github-repo"
 import glob from "glob"
 import jsdoc from "jsdoc-api"
 import process from "process"
+import uuid from "uuid/v4"
 
 dotenv.config()
 
@@ -39,7 +40,8 @@ function streamExec(command, options={}) {
 
 export default class Repo {
   static async newCreateDocs(owner, repo) {
-    let buildPath       = Path.join("/tmp", owner, repo)
+    let buildId         = uuid()
+    let buildPath       = Path.join("/tmp", buildId)
     let dockerDistPath  = Path.join("/tmp")
     let environment     = [ `-e AWS_ACCESS_KEY_ID="${ process.env.S3_ACCESS_KEY_ID }"`,
                             `-e AWS_SECRET_ACCESS_KEY="${ process.env.S3_SECRET_ACCESS_KEY }"`,
@@ -53,10 +55,18 @@ export default class Repo {
 
     environment = environment.join(" ")
 
-    await streamExec(`sudo docker run -v ${ buildPath }:${ dockerDistPath } ${ environment } cometkit-packer node -r 'babel-register' /cometkit-api/src/pack.js ${owner}/${repo}`)
+    let sudo = ""
+    if(process.env.NODE_ENV === "production")
+      sudo = "sudo"
+
+    await streamExec(`${sudo} docker run -v ${ buildPath }:${ dockerDistPath } ${ environment } cometkit-packer node -r 'babel-register' /cometkit-api/src/pack.js ${owner}/${repo}`)
 
     let docsPath  = Path.join(buildPath, owner, repo, "comet-dist", "docs.comet.json")
     let docs      = JSON.parse(fs.readFileSync(docsPath))
+
+    // Cleanup build directory
+    fs.remove(buildPath)
+    console.log("Cleaned up build directory.")
 
     return docs
   }
@@ -109,10 +119,8 @@ export default class Repo {
       console.log("Parsed JsDoc comments")
 
       // Install dependencies
-      let result = await streamExec("npm install", { cwd: Path.resolve(tmpPath) })
-      console.log("Installed dependencies")
-      result = await streamExec("npm install --only=dev", { cwd: Path.resolve(tmpPath) })
-      console.log("Installed devDependencies")
+      await streamExec("npm install", { cwd: Path.resolve(tmpPath) })
+      await streamExec("npm install --only=dev", { cwd: Path.resolve(tmpPath) })
 
       let uploads = docs.map(doc => {
         return (async () => {
@@ -240,8 +248,8 @@ export default class Repo {
     // Pack demo code
     let demoPath = Path.join(fileDir, `${name}Demo.js`)
     let demoCode = `
-      window.RealDemo = (function() { 
-        ${ doc.examples[0] } 
+      window.RealDemo = (function() {
+        ${ doc.examples[0] }
       })()
     `
 

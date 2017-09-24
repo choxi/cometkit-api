@@ -54,6 +54,7 @@
     "sass-loader": "6.0.6",
     "url-loader": "0.5.9",
     "utf-8-validate": "3.0.3",
+    "uuid": "3.1.0",
     "webpack": "3.5.6",
     "webpack-merge": "4.1.0"
   }
