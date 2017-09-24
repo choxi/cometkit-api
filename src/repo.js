@@ -65,7 +65,7 @@ export default class Repo {
     let docs      = JSON.parse(fs.readFileSync(docsPath))
 
     // Cleanup build directory
-    fs.remove(buildPath)
+    await streamExec(`${ sudo } rm -rf ${ buildPath }`)
     console.log("Cleaned up build directory.")
 
     // Cleanup docker containers and volumes
