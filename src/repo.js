@@ -200,6 +200,9 @@ export default class Repo {
     let outputPath  = Path.join(outputDir, outputName)
     let library     = options.library || capitalize(name)
 
+    if(options.loadUserConfig === undefined)
+      options.loadUserConfig = true
+
     // Merge user config or use default
     let templateContext = {
       entry: filePath,
@@ -210,7 +213,7 @@ export default class Repo {
 
     let config 
     let defaultWebpackConfigPath = Path.resolve(downloadPath, "webpack.config.js")
-    if(fs.existsSync(defaultWebpackConfigPath))
+    if(fs.existsSync(defaultWebpackConfigPath) && options.loadUserConfig)
       config = configTemplate(templateContext, { webpackConfigPath: defaultWebpackConfigPath })
     else
       config = configTemplate(templateContext)
