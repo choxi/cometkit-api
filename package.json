@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "NODE_ENV=development node index.js",
+    "dev": "NODE_ENV=development node -r dotenv/config index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "pack": "NODE_ENV=development node -r 'babel-register' src/pack.js",
     "prod": "npm run docker && pm2 restart api",

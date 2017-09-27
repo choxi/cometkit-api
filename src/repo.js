@@ -1,7 +1,6 @@
 import Path from "path"
 import webpack from "webpack"
 import s3Client from "s3"
-import dotenv from "dotenv"
 import { exec } from "child-process-promise"
 import { spawn } from "child_process"
 import fs from "fs-extra"
@@ -12,8 +11,6 @@ import glob from "glob"
 import jsdoc from "jsdoc-api"
 import process from "process"
 import uuid from "uuid/v4"
-
-dotenv.config()
 
 const s3Options = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
