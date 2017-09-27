@@ -123,6 +123,7 @@ export default class Repo {
       await streamExec("npm install", { cwd: Path.resolve(tmpPath) })
       await streamExec("npm install --only=dev", { cwd: Path.resolve(tmpPath) })
       await streamExec("rm -f node_modules/.bin/webpack && rm -rf node_modules/webpack", { cwd: Path.resolve(tmpPath) })
+      await streamExec("rm -f node_modules/.bin/babel* && rm -rf node_modules/babel*", { cwd: Path.resolve(tmpPath) })
 
       let uploads = docs.map(doc => {
         return (async () => {
