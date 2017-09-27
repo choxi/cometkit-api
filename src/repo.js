@@ -62,8 +62,10 @@ export default class Repo {
     let docs      = JSON.parse(fs.readFileSync(docsPath))
 
     // Cleanup build directory
-    await streamExec(`${ sudo } rm -rf ${ buildPath }`)
-    console.log("Cleaned up build directory.")
+    if(!process.env.DISABLE_CLEANUP) {
+      await streamExec(`${ sudo } rm -rf ${ buildPath }`)
+      console.log("Cleaned up build directory.")
+    }
 
     return docs
   }
