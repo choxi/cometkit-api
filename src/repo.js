@@ -127,22 +127,19 @@ export default class Repo {
     let library     = options.library || capitalize(name)
 
     // Merge user config or use default
-    let templateOptions = {
+    let templateContext = {
       entry: filePath,
       library: library,
       path: outputDir,
       filename: outputName
     }
 
-    let templateConfig
-    if(options.webpackConfigPath)
-      templateConfig = Object.assign(options, { loadUserConfig: true })
-    else if(fs.existsSync(Path.join(downloadPath, "webpack.config.js")))
-      templateConfig = options
+    let config 
+    let defaultWebpackConfigPath = Path.resolve(downloadPath, "webpack.config.js")
+    if(fs.existsSync(defaultWebpackConfigPath))
+      config = configTemplate(templateContext, { webpackConfigPath: defaultWebpackConfigPath })
     else
-      templateConfig = Object.assign(options, { loadUserConfig: false })
-
-    let config = configTemplate(templateOptions, templateConfig)
+      config = configTemplate(templateContext)
 
     // Write Comet webpack config
     let webpackConfigName = `${name}.webpack.js`
@@ -242,11 +239,14 @@ function modulename(path) {
 }
 
 function configTemplate({ entry, library, path, filename }, options = {}) {
-  if(options.loadUserConfig === undefined)
-    options.loadUserConfig = true
+  let directories = __dirname.split(Path.sep)
+  directories.pop()
+
+  let appPath = directories.join("/")
+  let cometkitApiModulesPath = Path.join(appPath, "node_modules")
 
   let userConfig, module, resolve, plugins
-  if(!options.loadUserConfig) {
+  if(!options.webpackConfigPath) {
     userConfig  = ""
     resolve     = "undefined"
     plugins     = "undefined"
@@ -275,23 +275,12 @@ function configTemplate({ entry, library, path, filename }, options = {}) {
       ]
     }`
   } else {
-    let userConfigPath
-    if(options && options.webpackConfigPath)
-      userConfigPath = [".", options.webpackConfigPath].join("/")
-    else
-      userConfigPath = [".", "webpack.config.js"].join("/")
-
-    userConfig  = `var defaultConfig = require("${ userConfigPath }")`
+    userConfig  = `var defaultConfig = require("${ options.webpackConfigPath }")`
     module      = `defaultConfig.module`
     resolve     = `defaultConfig.resolve`
     plugins     = `defaultConfig.plugins`
   }
 
-  let directories = __dirname.split(Path.sep)
-  directories.pop()
-
-  let appPath = directories.join("/")
-  let cometkitApiModulesPath = Path.join(appPath, "node_modules")
   return `
     var path = require("path")
 
