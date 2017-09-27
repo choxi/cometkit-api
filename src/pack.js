@@ -38,9 +38,8 @@ async function download(repo, downloadPath) {
 
 async function main() {
   let [owner, repo] = process.argv[2].split("/")
-  let buildPath     = process.argv[3]
 
-  let docs = await Repo.createDocs(owner, repo, { buildPath: buildPath })
+  let docs = await Repo.buildDocs(owner, repo)
 
   console.log(JSON.stringify(docs, null, 4))
 }
