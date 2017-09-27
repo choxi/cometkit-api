@@ -39,7 +39,7 @@ function streamExec(command, options={}) {
 }
 
 export default class Repo {
-  static async newCreateDocs(owner, repo) {
+  static async createDocs(owner, repo) {
     let buildId         = uuid()
     let buildPath       = Path.join("/tmp", buildId)
     let dockerDistPath  = Path.join("/tmp")
@@ -68,83 +68,7 @@ export default class Repo {
     await streamExec(`${ sudo } rm -rf ${ buildPath }`)
     console.log("Cleaned up build directory.")
 
-    // Cleanup docker containers and volumes
-    streamExec(`${sudo} docker container prune -f`)
-    streamExec(`${sudo} docker volume prune -f`)
-
     return docs
-  }
-
-  static async createDocs(owner, repo, options={}) {
-    let tmpPath   = Path.join("/", "tmp", owner, repo)
-    let githubUrl = `https://api.github.com/repos/${ owner }/${ repo }/git/refs/heads/master`
-    let ref       = await fetch(githubUrl).then(response => response.json())
-    let sha       = ref.object.sha
-
-    let namespace = [owner, repo, sha].join("/")
-    let exists    = await Repo.exists(namespace)
-    let docs      = await Repo.getFile(namespace, "docs.comet.json")
-
-    if(docs) {
-      docs = JSON.parse(docs)
-      fs.ensureDirSync(Path.join(tmpPath, "comet-dist"))
-      fs.writeFileSync(Path.join(tmpPath, "comet-dist", "docs.comet.json"), JSON.stringify(docs))
-    }
-
-    if(exists && docs && !process.env.DISABLE_CACHE) {
-      console.log("Found cached docs")
-      return docs
-    } else {
-      console.log("No docs found in cache. Generating.")
-      console.log(`Downloading repository: ${namespace}`)
-      await download(namespace, tmpPath)
-
-      let cometConfig
-      let cometConfigPath = Path.join(tmpPath, "comet.json")
-      if(fs.existsSync(cometConfigPath))
-        cometConfig = JSON.parse(fs.readFileSync(cometConfigPath))
-
-      let stageSources = []
-      if(cometConfig && cometConfig.sources) {
-        let sourceUploads = cometConfig.sources.map((source) => {
-          let sourcePath  = Path.join(tmpPath, source)
-          let filename    = Path.basename(sourcePath)
-          let key         = [namespace, filename].join("/")
-
-          return this.upload(process.env.S3_BUCKET, key, sourcePath)
-        })
-
-        // Upload sources in parallel
-        stageSources = await Promise.all(sourceUploads)
-        console.log("Uploaded sources")
-      }
-
-      docs = getJsDocs(tmpPath)
-      console.log("Parsed JsDoc comments")
-
-      // Install dependencies
-      await streamExec("npm install", { cwd: Path.resolve(tmpPath) })
-      await streamExec("npm install --only=dev", { cwd: Path.resolve(tmpPath) })
-
-      let uploads = docs.map(doc => {
-        return (async () => {
-          if(doc.meta) {
-            let { moduleUri, stageUri } = await Repo.deploy(doc, tmpPath, namespace, stageSources)
-
-            doc.meta.webpackUri = moduleUri
-            doc.meta.moduleUri  = moduleUri
-            doc.meta.stageUri   = stageUri
-          }
-        })()
-      })
-
-      // Upload to S3
-      await Promise.all(uploads)
-      await Repo.add(namespace, "docs.comet.json", JSON.stringify(docs))
-      fs.writeFileSync(Path.join(tmpPath, "comet-dist", "docs.comet.json"), JSON.stringify(docs))
-
-      return docs
-    }
   }
 
   static exists(repo) {

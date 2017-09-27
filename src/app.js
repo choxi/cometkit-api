@@ -50,7 +50,7 @@ export default class App {
         console.log(`ACTION: ${formatted}`)
 
         if(action.type === "CREATE_DOCS") {
-          let docs = await Repo.newCreateDocs(action.owner, action.repo)
+          let docs = await Repo.createDocs(action.owner, action.repo)
 
           ws.send(JSON.stringify({ docs: docs }))
         }
