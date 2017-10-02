@@ -7,6 +7,7 @@ import fs         from "fs"
 import expressWs  from "express-ws"
 import helmet     from "helmet"
 import Repo       from "./repo.js"
+import User       from "./user.js"
 import { exec }   from "child-process-promise"
 
 export default class App {
@@ -53,6 +54,9 @@ export default class App {
           let docs = await Repo.createDocs(action.owner, action.repo)
 
           ws.send(JSON.stringify({ docs: docs }))
+        } else if(action.type === "CREATE_USER") {
+          let user = await User.create(action.attributes)
+          ws.send(JSON.stringify(user))
         }
       })
     })

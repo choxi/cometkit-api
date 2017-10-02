@@ -10,7 +10,9 @@
     "pack": "NODE_ENV=development node -r 'babel-register' src/pack.js",
     "prod": "npm run docker && pm2 restart api",
     "scratch": "NODE_ENV=development node -r 'babel-register' ./scratch.js",
-    "docker": "docker build -t cometkit-packer ."
+    "docker": "docker build -t cometkit-packer .",
+    "db:migrate": "node -r dotenv/config -r 'babel-register' src/db/migrate.js",
+    "db:console": "psql -d cometkit_api_development"
   },
   "babel": {
     "presets": [
@@ -33,6 +35,7 @@
     "babel-preset-react": "6.24.1",
     "babel-preset-react-app": "3.0.2",
     "babel-register": "6.26.0",
+    "bcrypt": "1.0.3",
     "body-parser": "1.17.2",
     "bufferutil": "3.0.2",
     "child-process-promise": "2.2.1",
@@ -50,6 +53,7 @@
     "morgan": "1.8.2",
     "node-fetch": "1.7.3",
     "node-sass": "4.5.3",
+    "pg": "7.3.0",
     "s3": "4.4.0",
     "sass-loader": "6.0.6",
     "url-loader": "0.5.9",
