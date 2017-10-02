@@ -55,8 +55,19 @@ export default class App {
 
           ws.send(JSON.stringify({ docs: docs }))
         } else if(action.type === "CREATE_USER") {
-          let user = await User.create(action.attributes)
-          ws.send(JSON.stringify(user))
+          let { user, error } = await User.create(action.params)
+
+          if(user)
+            ws.send(JSON.stringify(user))
+          else if(error)
+            ws.send(JSON.stringify(error))
+
+        } else if(action.type === "CREATE_SESSION") {
+          let user = await User.authenticate(action.params)
+          if(user)
+            ws.send(JSON.stringify(user))
+          else
+            ws.send(JSON.stringify({ status: "401" }))
         }
       })
     })

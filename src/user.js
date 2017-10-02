@@ -44,29 +44,17 @@ export default class User {
       db.query(sql, values).then((result) => {
         let user = new User(result.rows[0])
 
-        resolve(user)
+        resolve({ user: user })
       })
-      .catch((e) => reject(e))
+      .catch(e => resolve({ error: { message: "Could not create user." }}))
     })
   }
 
-  static authenticate({ email, password, token }) {
+  static authenticate({ email, password }) {
     return new Promise((resolve, reject) => {
       let db = new Connection()
 
-      if(token) {
-        let sql    = "SELECT * FROM users WHERE token = $1"
-        let values = [ token ]
-
-        db.query(sql, values)
-        .then((result) => {
-          if(result.rows[0])
-            resolve(new User(result.rows[0]))
-          else
-            resolve()
-        })
-        .catch(reject)
-      } else if(email && password) {
+      if(email && password) {
         let sql    = "SELECT * FROM users WHERE email = $1"
         let values = [ email ]
 
