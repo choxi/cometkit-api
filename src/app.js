@@ -53,21 +53,21 @@ export default class App {
         if(action.type === "CREATE_DOCS") {
           let docs = await Repo.createDocs(action.owner, action.repo)
 
-          ws.send(JSON.stringify({ docs: docs }))
+          ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "ok", docs: docs }))
         } else if(action.type === "CREATE_USER") {
           let { user, error } = await User.create(action.params)
 
           if(user)
-            ws.send(JSON.stringify(user))
+            ws.send(JSON.stringify(Object.assign(user, { status: "ok", type: "CREATE_USER" })))
           else if(error)
-            ws.send(JSON.stringify(error))
+            ws.send(JSON.stringify(Object.assign(error, { status: "error", type: "CREATE_USER" })))
 
         } else if(action.type === "CREATE_SESSION") {
           let user = await User.authenticate(action.params)
           if(user)
-            ws.send(JSON.stringify(user))
+            ws.send(JSON.stringify({ status: "ok", type: "CREATE_SESSION", user: user }))
           else
-            ws.send(JSON.stringify({ status: "401" }))
+            ws.send(JSON.stringify({ status: "unauthorized", type: "CREATE_SESSION" }))
         }
       })
     })
