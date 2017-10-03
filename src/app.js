@@ -9,6 +9,7 @@ import helmet     from "helmet"
 import Repo       from "./repo.js"
 import User       from "./user.js"
 import { exec }   from "child-process-promise"
+import jwt        from "jsonwebtoken"
 
 export default class App {
   constructor() {
@@ -50,22 +51,40 @@ export default class App {
 
         console.log(`ACTION: ${formatted}`)
 
-        if(action.type === "CREATE_DOCS") {
-          let docs = await Repo.createDocs(action.owner, action.repo)
+        let currentUser, currentSession
+        if(action.session) {
+          try {
+            currentSession  = jwt.verify(action.session, process.env.SECRET)
+            console.log(`SESSION: ${ JSON.stringify(currentSession, null, 4) }`)
+            currentUser     = currentSession.data.user
+          } catch(err) {
+            console.log(err)
+            return
+          }
+        }
 
-          ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "ok", docs: docs }))
+        if(action.type === "CREATE_DOCS") {
+          if(!currentUser)
+            ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "unauthorized" }))
+          else {
+            let docs = await Repo.createDocs(action.owner, action.repo)
+            ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "ok", docs: docs }))
+          }
         } else if(action.type === "CREATE_USER") {
           let { user, error } = await User.create(action.params)
 
-          if(user)
-            ws.send(JSON.stringify(Object.assign(user, { status: "ok", type: "CREATE_USER" })))
-          else if(error)
-            ws.send(JSON.stringify(Object.assign(error, { status: "error", type: "CREATE_USER" })))
+          if(user) {
+            let session = jwt.sign({ data: { user: user }}, process.env.SECRET)
+            ws.send(JSON.stringify({ status: "ok", type: "CREATE_USER", user: user, session: session }))
+          } else if(error)
+            ws.send(JSON.stringify({ status: "error", type: "CREATE_USER", error: error }))
 
         } else if(action.type === "CREATE_SESSION") {
           let user = await User.authenticate(action.params)
+          let session = jwt.sign({ data: { user: user }}, process.env.SECRET)
+
           if(user)
-            ws.send(JSON.stringify({ status: "ok", type: "CREATE_SESSION", user: user }))
+            ws.send(JSON.stringify({ status: "ok", type: "CREATE_SESSION", session: session, user: user }))
           else
             ws.send(JSON.stringify({ status: "unauthorized", type: "CREATE_SESSION" }))
         }
