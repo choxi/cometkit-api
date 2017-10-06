@@ -56,7 +56,7 @@ export default class App {
           try {
             currentSession  = jwt.verify(action.session, process.env.SECRET)
             console.log(`SESSION: ${ JSON.stringify(currentSession, null, 4) }`)
-            currentUser     = currentSession.data.user
+            currentUser     = new User(currentSession.data.user)
           } catch(err) {
             console.log(err)
             return
@@ -67,7 +67,7 @@ export default class App {
           if(!currentUser)
             ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "unauthorized" }))
           else {
-            let docs = await Repo.createDocs(action.owner, action.repo)
+            let docs = await Repo.createDocs(action.owner, action.repo, currentUser)
             ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "ok", docs: docs }))
           }
         } else if(action.type === "CREATE_USER") {

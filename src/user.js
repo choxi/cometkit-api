@@ -1,5 +1,6 @@
 import Connection from "./db/connection.js"
 import bcrypt     from "bcrypt"
+import StyleGuide from "./StyleGuide.js"
 
 export default class User {
   constructor({ id, name, email, password_hash, token, key_name, stripe_token }) {
@@ -27,6 +28,30 @@ export default class User {
       let db = new Connection()
       db.query("UPDATE users SET stripe_token = $1 WHERE id = $2 RETURNING *", [ attributes.stripe_token, this.id ])
       .then((results) => resolve(new User(results.rows[0])))
+      .catch(reject)
+    })
+  }
+
+  findStyleGuide(githubRepo) {
+    return new Promise((resolve, reject) => {
+      let db = new Connection()
+      let query = `
+        SELECT 
+          * FROM style_guides 
+        INNER JOIN 
+          roles ON roles.source_id=style_guides.id
+        WHERE 
+          roles.source_type = 'StyleGuide' AND
+          roles.user_id = $1 AND
+          style_guides.github_repo = $2
+      `
+
+      let values = [ this.id, githubRepo ]
+
+      db.query(query, values).then((result) => {
+        let styleGuide = new StyleGuide(result.rows[0])
+        resolve(styleGuide)
+      })
       .catch(reject)
     })
   }
@@ -62,7 +87,7 @@ export default class User {
         .then((result) => {
           let userData = result.rows[0]
 
-          if(password && bcrypt.compareSync(password, userData.password_hash))
+          if(userData && password && bcrypt.compareSync(password, userData.password_hash))
             resolve(new User(userData))
           else
             resolve()

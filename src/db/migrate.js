@@ -16,3 +16,26 @@ db.query(`
   if(error)    console.log(error)
   if(response) console.log(response)
 })
+
+db.query(`
+  CREATE TABLE style_guides (
+    id          bigserial PRIMARY KEY NOT NULL,
+    github_repo text
+  )
+`, (error, response) => {
+  if(error)    console.log(error)
+  if(response) console.log(response)
+})
+
+db.query(`
+  CREATE TABLE roles (
+    id          bigserial PRIMARY KEY NOT NULL,
+    user_id     bigint NOT NULL,
+    source_type text,
+    source_id   bigint NOT NULL
+  )
+`, (error, response) => {
+  if(error) console.log(error)
+  if(response) console.log(response)
+})
+

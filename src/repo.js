@@ -11,6 +11,7 @@ import glob from "glob"
 import jsdoc from "jsdoc-api"
 import process from "process"
 import uuid from "uuid/v4"
+import StyleGuide from "./StyleGuide.js"
 
 const s3Options = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -36,7 +37,8 @@ function streamExec(command, options={}) {
 }
 
 export default class Repo {
-  static async createDocs(owner, repo) {
+  static async createDocs(owner, repo, user) {
+    let guide           = await StyleGuide.findOrCreate({ githubRepo: `${owner}/${repo}`, user: user })
     let buildId         = uuid()
     let buildPath       = Path.join("/tmp", buildId)
     let dockerDistPath  = Path.join("/tmp")
