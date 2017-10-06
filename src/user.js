@@ -3,7 +3,7 @@ import bcrypt     from "bcrypt"
 import StyleGuide from "./StyleGuide.js"
 
 export default class User {
-  constructor({ id, name, email, password_hash, token, key_name, stripe_token }) {
+  constructor({ id, name, email, password_hash, token, key_name, stripe_token, updated_at, created_at }) {
     this.id           = id
     this.name         = name
     this.email        = email
@@ -11,6 +11,8 @@ export default class User {
     this.token        = token
     this.keyName      = key_name
     this.stripeToken  = stripe_token
+    this.updatedAt    = updated_at
+    this.createdAt    = created_at
   }
 
   toJSON() {
@@ -19,7 +21,9 @@ export default class User {
       name: this.name,
       email: this.email,
       token: this.token,
-      key: this.key
+      key: this.key,
+      updatedAt: this.updateAt,
+      createdAt: this.createdAt
     }
   }
 
@@ -70,8 +74,10 @@ export default class User {
       let values = [ this.id, githubRepo ]
 
       db.query(query, values).then((result) => {
-        let styleGuide = new StyleGuide(result.rows[0])
-        resolve(styleGuide)
+        if(result.rows[0])
+          resolve(new StyleGuide(result.rows[0]))
+        else
+          resolve()
       })
       .catch(reject)
     })
@@ -83,9 +89,10 @@ export default class User {
 
       let salt = bcrypt.genSaltSync(10)
       let hash = bcrypt.hashSync(attributes.password, salt)
+      let now  = new Date()
 
-      let sql    = "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING *"
-      let values = [ attributes.name, attributes.email, hash ]
+      let sql    = "INSERT INTO users (name, email, password_hash, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING *"
+      let values = [ attributes.name, attributes.email, hash, now, now]
 
       db.query(sql, values).then((result) => {
         let user = new User(result.rows[0])
