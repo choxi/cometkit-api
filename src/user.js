@@ -32,6 +32,27 @@ export default class User {
     })
   }
 
+  styleGuides() {
+    return new Promise((resolve, reject) => {
+      let db = new Connection()
+      let query = `
+        SELECT * FROM style_guides
+        INNER JOIN roles ON roles.source_id = style_guides.id
+        WHERE
+          roles.source_type = 'StyleGuide' AND
+          roles.user_id = $1
+      `
+      let values = [ this.id ]
+
+      db.query(query, values)
+      .then((results) => {
+        let guides = results.rows.map(row => new StyleGuide(row))
+        resolve(guides)
+      })
+      .catch(reject)
+    })
+  }
+
   findStyleGuide(githubRepo) {
     return new Promise((resolve, reject) => {
       let db = new Connection()

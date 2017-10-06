@@ -87,6 +87,12 @@ export default class App {
             ws.send(JSON.stringify({ status: "ok", type: "CREATE_SESSION", session: session, user: user }))
           else
             ws.send(JSON.stringify({ status: "unauthorized", type: "CREATE_SESSION" }))
+        } else if(action.type === "LIST_STYLE_GUIDES") {
+          if(currentUser) {
+            let guides = await currentUser.styleGuides()
+            ws.send(JSON.stringify({ status: "ok", styleGuides: guides, type: "LIST_STYLE_GUIDES" }))
+          } else
+            ws.send(JSON.stringify({ status: "unauthorized", type: "LIST_STYLE_GUIDES" }))
         }
       })
     })
