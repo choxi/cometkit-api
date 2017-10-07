@@ -8,7 +8,7 @@
     "dev": "NODE_ENV=development node -r dotenv/config index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "pack": "NODE_ENV=development node -r 'babel-register' src/pack.js",
-    "prod": "npm run docker && pm2 restart api",
+    "deploy": "npm install && npm run docker && pm2 restart api",
     "scratch": "NODE_ENV=development node -r 'babel-register' ./scratch.js",
     "docker": "docker build -t cometkit-packer .",
     "db:migrate": "node -r dotenv/config -r 'babel-register' src/db/migrate.js",
