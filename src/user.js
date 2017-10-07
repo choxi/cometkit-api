@@ -125,6 +125,23 @@ export default class User {
     })
   }
 
+  static find(id) {
+    return new Promise((resolve, reject) => {
+      let db      = new Connection()
+      let sql     = "SELECT * FROM users WHERE id = $1"
+      let values  = [ id ]
+
+      db.query(sql, values)
+      .then((result) => {
+        if(result.rows[0])
+          resolve(new User(result.rows[0]))
+        else
+          resolve()
+      })
+      .catch(reject)
+    })
+  }
+
   static all() {
     return new Promise((resolve, reject) => {
       let db  = new Connection()

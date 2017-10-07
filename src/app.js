@@ -64,11 +64,15 @@ export default class App {
         }
 
         if(action.type === "CREATE_DOCS") {
-          if(!currentUser)
-            ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "unauthorized" }))
-          else {
+          if(currentUser) {
             let docs = await Repo.createDocs(action.owner, action.repo, currentUser)
             ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "ok", docs: docs }))
+          } else if(action.owner === "choxi" && action.repo === "skeleton") {
+            let user = await User.find(1)
+            let docs = await Repo.createDocs(action.owner, action.repo, user)
+            ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "ok", docs: docs }))
+          } else {
+            ws.send(JSON.stringify({ type: "CREATE_DOCS", status: "unauthorized" }))
           }
         } else if(action.type === "CREATE_USER") {
           let { user, error } = await User.create(action.params)
